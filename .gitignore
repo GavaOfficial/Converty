@@ -1,0 +1,37 @@
+# Rust
+/target/
+Cargo.lock
+
+# Database
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temp files
+/temp/
+*.tmp
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Logs
+*.log
+
+# Test files
+converted.jpg
+output.jpg
+test.png

@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  converty:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - CONVERTY_HOST=0.0.0.0
+      - CONVERTY_PORT=4000
+      - CONVERTY_MAX_FILE_SIZE_MB=100
+      - RUST_LOG=info
+      - DATABASE_URL=sqlite:/app/data/converty.db?mode=rwc
+    volumes:
+      - converty-data:/app/data
+      - converty-temp:/tmp/converty
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  converty-data:
+    driver: local
+  converty-temp:
+    driver: local

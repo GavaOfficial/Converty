@@ -1,0 +1,78 @@
+[package]
+name = "converty"
+version = "0.1.0"
+edition = "2021"
+description = "API REST per la conversione di file multimediali"
+authors = ["Converty Team"]
+
+[features]
+default = ["google-auth"]
+google-auth = ["dep:jsonwebtoken"]
+
+[dependencies]
+# Web framework
+axum = { version = "0.7", features = ["multipart"] }
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "limit"] }
+
+# Serializzazione
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Conversione immagini
+image = { version = "0.25", features = ["avif", "qoi"] }
+
+# SVG rendering (pure Rust)
+resvg = "0.44"
+usvg = "0.44"
+tiny-skia = "0.11"
+
+# Conversione documenti - PDF
+printpdf = "0.7"
+markdown = "1.0.0-alpha"
+
+# Regex leggera
+regex-lite = "0.1"
+
+# Utility
+uuid = { version = "1", features = ["v4", "serde"] }
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tempfile = "3"
+mime_guess = "2"
+chrono = { version = "0.4", features = ["serde"] }
+futures = "0.3"
+bytes = "1"
+tokio-stream = { version = "0.1", features = ["sync"] }
+
+# Rate limiting
+governor = "0.6"
+
+# Swagger/OpenAPI
+utoipa = { version = "5", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "8", features = ["axum", "debug-embed"] }
+
+# Database SQLite
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono"] }
+
+# Sicurezza e hashing
+sha2 = "0.10"
+rand = "0.8"
+base64 = "0.22"
+
+# HTTP client per URL fetch e webhooks
+reqwest = { version = "0.12", features = ["json"] }
+
+# JWT per Google OAuth (optional - only with google-auth feature)
+jsonwebtoken = { version = "9", optional = true }
+
+# Caricamento .env
+dotenvy = "0.15"
+
+# URL encoding
+urlencoding = "2"
+
+# ZIP archive
+zip = { version = "2.2", default-features = false, features = ["deflate"] }
