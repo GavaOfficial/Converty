@@ -28,7 +28,9 @@ pub fn convert(
     }
 
     match conversion_type {
-        ConversionType::Image => image::convert_image_with_quality(data, input_format, output_format, quality),
+        ConversionType::Image => {
+            image::convert_image_with_quality(data, input_format, output_format, quality)
+        }
         ConversionType::Document => document::convert_document(data, input_format, output_format),
         ConversionType::Audio => media::convert_audio(data, input_format, output_format, quality),
         ConversionType::Video => media::convert_video(data, input_format, output_format, quality),
@@ -103,7 +105,10 @@ pub fn convert_file(
             let zip_path = output_path.with_extension("zip");
             std::fs::write(&zip_path, zip_data)?;
             // Crea anche un file marker col path originale per il download
-            std::fs::write(output_path.with_extension("zip.marker"), zip_path.to_string_lossy().as_bytes())?;
+            std::fs::write(
+                output_path.with_extension("zip.marker"),
+                zip_path.to_string_lossy().as_bytes(),
+            )?;
             return Ok(());
         } else {
             return pdf::convert_pdf_file(input_path, output_path, output_format, None, None);

@@ -47,8 +47,20 @@ impl Default for UserSettings {
 }
 
 /// Ottiene le impostazioni di un utente
-pub async fn get_settings(pool: &DbPool, user_id: &str) -> Result<Option<UserSettings>, sqlx::Error> {
-    let row: Option<(String, i64, Option<String>, Option<String>, i64, Option<String>, String, String)> = sqlx::query_as(
+pub async fn get_settings(
+    pool: &DbPool,
+    user_id: &str,
+) -> Result<Option<UserSettings>, sqlx::Error> {
+    let row: Option<(
+        String,
+        i64,
+        Option<String>,
+        Option<String>,
+        i64,
+        Option<String>,
+        String,
+        String,
+    )> = sqlx::query_as(
         r#"
         SELECT user_id, save_to_drive_enabled, drive_folder_id, drive_folder_name,
                auto_save_original_filename, drive_filter_types, created_at, updated_at
@@ -61,24 +73,34 @@ pub async fn get_settings(pool: &DbPool, user_id: &str) -> Result<Option<UserSet
     .await?;
 
     match row {
-        Some((user_id, drive_enabled, folder_id, folder_name, auto_filename, filter_types, created_at, updated_at)) => {
-            Ok(Some(UserSettings {
-                user_id,
-                save_to_drive_enabled: drive_enabled != 0,
-                drive_folder_id: folder_id,
-                drive_folder_name: folder_name.unwrap_or_else(|| "Converty Exports".to_string()),
-                auto_save_original_filename: auto_filename != 0,
-                drive_filter_types: filter_types.unwrap_or_else(|| "all".to_string()),
-                created_at,
-                updated_at,
-            }))
-        }
+        Some((
+            user_id,
+            drive_enabled,
+            folder_id,
+            folder_name,
+            auto_filename,
+            filter_types,
+            created_at,
+            updated_at,
+        )) => Ok(Some(UserSettings {
+            user_id,
+            save_to_drive_enabled: drive_enabled != 0,
+            drive_folder_id: folder_id,
+            drive_folder_name: folder_name.unwrap_or_else(|| "Converty Exports".to_string()),
+            auto_save_original_filename: auto_filename != 0,
+            drive_filter_types: filter_types.unwrap_or_else(|| "all".to_string()),
+            created_at,
+            updated_at,
+        })),
         None => Ok(None),
     }
 }
 
 /// Ottiene le impostazioni o restituisce default
-pub async fn get_or_create_settings(pool: &DbPool, user_id: &str) -> Result<UserSettings, sqlx::Error> {
+pub async fn get_or_create_settings(
+    pool: &DbPool,
+    user_id: &str,
+) -> Result<UserSettings, sqlx::Error> {
     if let Some(settings) = get_settings(pool, user_id).await? {
         return Ok(settings);
     }
@@ -107,7 +129,11 @@ pub async fn create_settings(pool: &DbPool, settings: &UserSettings) -> Result<(
     .bind(if settings.save_to_drive_enabled { 1 } else { 0 })
     .bind(&settings.drive_folder_id)
     .bind(&settings.drive_folder_name)
-    .bind(if settings.auto_save_original_filename { 1 } else { 0 })
+    .bind(if settings.auto_save_original_filename {
+        1
+    } else {
+        0
+    })
     .bind(&settings.drive_filter_types)
     .bind(&settings.created_at)
     .bind(&settings.updated_at)
@@ -161,7 +187,11 @@ pub async fn update_settings(
     .bind(if settings.save_to_drive_enabled { 1 } else { 0 })
     .bind(&settings.drive_folder_id)
     .bind(&settings.drive_folder_name)
-    .bind(if settings.auto_save_original_filename { 1 } else { 0 })
+    .bind(if settings.auto_save_original_filename {
+        1
+    } else {
+        0
+    })
     .bind(&settings.drive_filter_types)
     .bind(&settings.updated_at)
     .bind(user_id)
@@ -173,18 +203,20 @@ pub async fn update_settings(
 
 /// Controlla se l'utente ha Drive abilitato
 pub async fn is_drive_enabled(pool: &DbPool, user_id: &str) -> Result<bool, sqlx::Error> {
-    let row: Option<(i64,)> = sqlx::query_as(
-        "SELECT save_to_drive_enabled FROM user_settings WHERE user_id = ?"
-    )
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await?;
+    let row: Option<(i64,)> =
+        sqlx::query_as("SELECT save_to_drive_enabled FROM user_settings WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await?;
 
     Ok(row.map(|(v,)| v != 0).unwrap_or(false))
 }
 
 /// Ottiene folder ID per Drive
-pub async fn get_drive_folder(pool: &DbPool, user_id: &str) -> Result<Option<(String, String)>, sqlx::Error> {
+pub async fn get_drive_folder(
+    pool: &DbPool,
+    user_id: &str,
+) -> Result<Option<(String, String)>, sqlx::Error> {
     let row: Option<(Option<String>, Option<String>)> = sqlx::query_as(
         "SELECT drive_folder_id, drive_folder_name FROM user_settings WHERE user_id = ? AND save_to_drive_enabled = 1"
     )
@@ -193,7 +225,10 @@ pub async fn get_drive_folder(pool: &DbPool, user_id: &str) -> Result<Option<(St
     .await?;
 
     match row {
-        Some((Some(id), name)) => Ok(Some((id, name.unwrap_or_else(|| "Converty Exports".to_string())))),
+        Some((Some(id), name)) => Ok(Some((
+            id,
+            name.unwrap_or_else(|| "Converty Exports".to_string()),
+        ))),
         _ => Ok(None),
     }
 }
@@ -207,7 +242,10 @@ pub struct DriveUploadSettings {
 }
 
 /// Ottiene le impostazioni Drive per upload (se abilitato)
-pub async fn get_drive_upload_settings(pool: &DbPool, user_id: &str) -> Result<Option<DriveUploadSettings>, sqlx::Error> {
+pub async fn get_drive_upload_settings(
+    pool: &DbPool,
+    user_id: &str,
+) -> Result<Option<DriveUploadSettings>, sqlx::Error> {
     let row: Option<(i64, Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
         "SELECT save_to_drive_enabled, drive_folder_id, drive_folder_name, drive_filter_types FROM user_settings WHERE user_id = ?"
     )

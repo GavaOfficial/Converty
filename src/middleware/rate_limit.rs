@@ -1,10 +1,4 @@
-use axum::{
-    extract::Request,
-    http::StatusCode,
-    middleware::Next,
-    response::Response,
-    Json,
-};
+use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response, Json};
 use governor::{
     clock::DefaultClock,
     state::{InMemoryState, NotKeyed},

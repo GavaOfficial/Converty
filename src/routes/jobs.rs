@@ -17,14 +17,14 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::Stream;
 use uuid::Uuid;
 
+use crate::db::api_keys::ApiKeyRole;
 use crate::db::jobs::{self as db_jobs, JobsListResponse, JobsQuery};
 use crate::db::stats;
 use crate::db::DbPool;
 use crate::error::{AppError, Result};
-use crate::db::api_keys::ApiKeyRole;
-use crate::routes::convert::AuthInfo;
 use crate::models::{CreateJobRequest, JobCreatedResponse, JobResponse, JobStatus, ProgressUpdate};
-use crate::services::queue::{self, JobQueue, ProgressSender, download_from_url};
+use crate::routes::convert::AuthInfo;
+use crate::services::queue::{self, download_from_url, JobQueue, ProgressSender};
 use crate::utils::get_extension;
 
 /// Stato condiviso per le routes dei jobs
@@ -79,7 +79,9 @@ pub async fn list_jobs(
 ) -> Result<Json<JobsListResponse>> {
     // Solo admin può vedere tutti i job
     if auth.role != ApiKeyRole::Admin {
-        return Err(AppError::Forbidden("Solo gli admin possono vedere la lista completa dei job".to_string()));
+        return Err(AppError::Forbidden(
+            "Solo gli admin possono vedere la lista completa dei job".to_string(),
+        ));
     }
 
     let response = db_jobs::list_jobs(&state.db, &query)
@@ -153,9 +155,10 @@ pub async fn get_history(
         status: query.status,
     };
 
-    let jobs = stats::get_user_conversions_filtered(&state.db, &api_key_id, query.limit, Some(&filters))
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let jobs =
+        stats::get_user_conversions_filtered(&state.db, &api_key_id, query.limit, Some(&filters))
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(Json(HistoryResponse { jobs }))
 }
@@ -208,7 +211,11 @@ pub async fn create_job(
 
         let filename = field.file_name().unwrap_or("file").to_string();
         let input_format = get_extension(&filename).unwrap_or_default();
-        let original_filename = if filename != "file" { Some(filename.clone()) } else { None };
+        let original_filename = if filename != "file" {
+            Some(filename.clone())
+        } else {
+            None
+        };
         let bytes = field
             .bytes()
             .await
@@ -516,7 +523,7 @@ pub async fn retry_job(
 
     if job.status != "failed" {
         return Err(AppError::BadRequest(
-            "Solo i job falliti possono essere ritentati".to_string()
+            "Solo i job falliti possono essere ritentati".to_string(),
         ));
     }
 
@@ -536,7 +543,9 @@ pub async fn retry_job(
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     if !success {
-        return Err(AppError::Internal("Impossibile resettare il job".to_string()));
+        return Err(AppError::Internal(
+            "Impossibile resettare il job".to_string(),
+        ));
     }
 
     // Avvia elaborazione in background
@@ -591,7 +600,9 @@ pub async fn cancel_job(
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     if !success {
-        return Err(AppError::Internal("Impossibile cancellare il job".to_string()));
+        return Err(AppError::Internal(
+            "Impossibile cancellare il job".to_string(),
+        ));
     }
 
     // Invia notifica di cancellazione via SSE
@@ -633,9 +644,9 @@ pub async fn delete_drive_file(
     use crate::services::google_drive::GoogleDriveService;
 
     // Verifica autenticazione
-    let api_key_id = auth.api_key_id.ok_or_else(|| {
-        AppError::Unauthorized("Autenticazione richiesta".to_string())
-    })?;
+    let api_key_id = auth
+        .api_key_id
+        .ok_or_else(|| AppError::Unauthorized("Autenticazione richiesta".to_string()))?;
 
     // Verifica che il job esista e appartenga all'utente
     let job = db_jobs::get_job(&state.db, &id)
@@ -649,9 +660,9 @@ pub async fn delete_drive_file(
     }
 
     // Verifica che ci sia un drive_file_id
-    let drive_file_id = job.drive_file_id.ok_or_else(|| {
-        AppError::BadRequest("Il job non ha un file su Google Drive".to_string())
-    })?;
+    let drive_file_id = job
+        .drive_file_id
+        .ok_or_else(|| AppError::BadRequest("Il job non ha un file su Google Drive".to_string()))?;
 
     // Trova l'utente OAuth associato all'API key
     let user_id = oauth_users::get_user_id_by_api_key(&state.db, &api_key_id)
@@ -668,7 +679,12 @@ pub async fn delete_drive_file(
     // Ottieni token valido
     let drive = GoogleDriveService::new();
     let access_token = drive
-        .get_valid_token(&state.db, &user_id, &google_client_id, &google_client_secret)
+        .get_valid_token(
+            &state.db,
+            &user_id,
+            &google_client_id,
+            &google_client_secret,
+        )
         .await
         .map_err(|e| AppError::Internal(format!("Impossibile ottenere token: {}", e)))?;
 
@@ -726,9 +742,9 @@ pub async fn get_drive_thumbnail(
     use crate::services::google_drive::GoogleDriveService;
 
     // Verifica autenticazione
-    let api_key_id = auth.api_key_id.ok_or_else(|| {
-        AppError::Unauthorized("Autenticazione richiesta".to_string())
-    })?;
+    let api_key_id = auth
+        .api_key_id
+        .ok_or_else(|| AppError::Unauthorized("Autenticazione richiesta".to_string()))?;
 
     // Verifica che il job esista e appartenga all'utente
     let job = db_jobs::get_job(&state.db, &id)
@@ -742,9 +758,9 @@ pub async fn get_drive_thumbnail(
     }
 
     // Verifica che ci sia un drive_file_id
-    let drive_file_id = job.drive_file_id.ok_or_else(|| {
-        AppError::BadRequest("Il job non ha un file su Google Drive".to_string())
-    })?;
+    let drive_file_id = job
+        .drive_file_id
+        .ok_or_else(|| AppError::BadRequest("Il job non ha un file su Google Drive".to_string()))?;
 
     // Trova l'utente OAuth associato all'API key
     let user_id = oauth_users::get_user_id_by_api_key(&state.db, &api_key_id)
@@ -761,7 +777,12 @@ pub async fn get_drive_thumbnail(
     // Ottieni token valido
     let drive = GoogleDriveService::new();
     let access_token = drive
-        .get_valid_token(&state.db, &user_id, &google_client_id, &google_client_secret)
+        .get_valid_token(
+            &state.db,
+            &user_id,
+            &google_client_id,
+            &google_client_secret,
+        )
         .await
         .map_err(|e| AppError::Internal(format!("Impossibile ottenere token: {}", e)))?;
 

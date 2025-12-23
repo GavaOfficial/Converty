@@ -2,8 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::DbPool;
 use super::api_keys::{self, ApiKeyCreated, CreateApiKeyRequest};
+use super::DbPool;
 
 /// OAuth User nel database
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -42,7 +42,10 @@ pub struct OAuthLoginResult {
 }
 
 /// Trova utente OAuth per Google ID
-pub async fn find_by_google_id(pool: &DbPool, google_id: &str) -> Result<Option<OAuthUser>, sqlx::Error> {
+pub async fn find_by_google_id(
+    pool: &DbPool,
+    google_id: &str,
+) -> Result<Option<OAuthUser>, sqlx::Error> {
     let row: Option<(
         String, String, String, Option<String>, Option<String>, String, String, String, String
     )> = sqlx::query_as(
@@ -57,31 +60,42 @@ pub async fn find_by_google_id(pool: &DbPool, google_id: &str) -> Result<Option<
     .await?;
 
     match row {
-        Some((id, google_id, email, name, picture_url, api_key_id, created_at, updated_at, last_login_at)) => {
-            Ok(Some(OAuthUser {
-                id,
-                google_id,
-                email,
-                name,
-                picture_url,
-                api_key_id,
-                created_at: DateTime::parse_from_rfc3339(&created_at)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
-                updated_at: DateTime::parse_from_rfc3339(&updated_at)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
-                last_login_at: DateTime::parse_from_rfc3339(&last_login_at)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
-            }))
-        }
+        Some((
+            id,
+            google_id,
+            email,
+            name,
+            picture_url,
+            api_key_id,
+            created_at,
+            updated_at,
+            last_login_at,
+        )) => Ok(Some(OAuthUser {
+            id,
+            google_id,
+            email,
+            name,
+            picture_url,
+            api_key_id,
+            created_at: DateTime::parse_from_rfc3339(&created_at)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now()),
+            updated_at: DateTime::parse_from_rfc3339(&updated_at)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now()),
+            last_login_at: DateTime::parse_from_rfc3339(&last_login_at)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now()),
+        })),
         None => Ok(None),
     }
 }
 
 /// Trova utente OAuth per API Key ID
-pub async fn find_by_api_key_id(pool: &DbPool, api_key_id: &str) -> Result<Option<OAuthUser>, sqlx::Error> {
+pub async fn find_by_api_key_id(
+    pool: &DbPool,
+    api_key_id: &str,
+) -> Result<Option<OAuthUser>, sqlx::Error> {
     let row: Option<(
         String, String, String, Option<String>, Option<String>, String, String, String, String
     )> = sqlx::query_as(
@@ -96,25 +110,33 @@ pub async fn find_by_api_key_id(pool: &DbPool, api_key_id: &str) -> Result<Optio
     .await?;
 
     match row {
-        Some((id, google_id, email, name, picture_url, api_key_id, created_at, updated_at, last_login_at)) => {
-            Ok(Some(OAuthUser {
-                id,
-                google_id,
-                email,
-                name,
-                picture_url,
-                api_key_id,
-                created_at: DateTime::parse_from_rfc3339(&created_at)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
-                updated_at: DateTime::parse_from_rfc3339(&updated_at)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
-                last_login_at: DateTime::parse_from_rfc3339(&last_login_at)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
-            }))
-        }
+        Some((
+            id,
+            google_id,
+            email,
+            name,
+            picture_url,
+            api_key_id,
+            created_at,
+            updated_at,
+            last_login_at,
+        )) => Ok(Some(OAuthUser {
+            id,
+            google_id,
+            email,
+            name,
+            picture_url,
+            api_key_id,
+            created_at: DateTime::parse_from_rfc3339(&created_at)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now()),
+            updated_at: DateTime::parse_from_rfc3339(&updated_at)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now()),
+            last_login_at: DateTime::parse_from_rfc3339(&last_login_at)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now()),
+        })),
         None => Ok(None),
     }
 }
@@ -130,7 +152,10 @@ pub async fn create_oauth_user(
         role: "user".to_string(),
         rate_limit: 100,
         daily_limit: Some(500),
-        notes: Some(format!("Auto-generated for Google user: {}", user_info.google_id)),
+        notes: Some(format!(
+            "Auto-generated for Google user: {}",
+            user_info.google_id
+        )),
     };
 
     let api_key = api_keys::create_api_key(pool, &api_key_request, None).await?;
@@ -214,13 +239,14 @@ pub async fn update_user_info(
 }
 
 /// Ottieni API key prefix per un utente
-pub async fn get_api_key_prefix(pool: &DbPool, api_key_id: &str) -> Result<Option<String>, sqlx::Error> {
-    let row: Option<(String,)> = sqlx::query_as(
-        "SELECT key_prefix FROM api_keys WHERE id = ?"
-    )
-    .bind(api_key_id)
-    .fetch_optional(pool)
-    .await?;
+pub async fn get_api_key_prefix(
+    pool: &DbPool,
+    api_key_id: &str,
+) -> Result<Option<String>, sqlx::Error> {
+    let row: Option<(String,)> = sqlx::query_as("SELECT key_prefix FROM api_keys WHERE id = ?")
+        .bind(api_key_id)
+        .fetch_optional(pool)
+        .await?;
 
     Ok(row.map(|(prefix,)| prefix))
 }
@@ -236,7 +262,10 @@ async fn create_new_api_key_for_user(
         role: "user".to_string(),
         rate_limit: 100,
         daily_limit: Some(500),
-        notes: Some(format!("Auto-generated for Google user: {}", user_info.google_id)),
+        notes: Some(format!(
+            "Auto-generated for Google user: {}",
+            user_info.google_id
+        )),
     };
 
     let api_key = api_keys::create_api_key(pool, &api_key_request, None).await?;
@@ -268,7 +297,8 @@ pub async fn login_or_register(
 
         if let Some(api_key) = existing_key {
             // Chiave trovata con plaintext, la usiamo
-            let prefix = get_api_key_prefix(pool, &existing_user.api_key_id).await?
+            let prefix = get_api_key_prefix(pool, &existing_user.api_key_id)
+                .await?
                 .unwrap_or_else(|| "cv_...".to_string());
 
             return Ok(OAuthLoginResult {
@@ -382,13 +412,14 @@ pub fn is_token_expired(tokens: &OAuthTokens) -> bool {
 }
 
 /// Ottieni l'ID utente dall'api_key_id
-pub async fn get_user_id_by_api_key(pool: &DbPool, api_key_id: &str) -> Result<Option<String>, sqlx::Error> {
-    let row: Option<(String,)> = sqlx::query_as(
-        "SELECT id FROM oauth_users WHERE api_key_id = ?"
-    )
-    .bind(api_key_id)
-    .fetch_optional(pool)
-    .await?;
+pub async fn get_user_id_by_api_key(
+    pool: &DbPool,
+    api_key_id: &str,
+) -> Result<Option<String>, sqlx::Error> {
+    let row: Option<(String,)> = sqlx::query_as("SELECT id FROM oauth_users WHERE api_key_id = ?")
+        .bind(api_key_id)
+        .fetch_optional(pool)
+        .await?;
 
     Ok(row.map(|(id,)| id))
 }

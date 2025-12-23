@@ -308,7 +308,10 @@ pub async fn cleanup_old_data(
 
     Ok(Json(CleanupResponse {
         records_deleted: deleted,
-        message: format!("Eliminati {} record più vecchi di {} giorni", deleted, request.days),
+        message: format!(
+            "Eliminati {} record più vecchi di {} giorni",
+            deleted, request.days
+        ),
     }))
 }
 

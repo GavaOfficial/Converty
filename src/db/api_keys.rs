@@ -108,10 +108,10 @@ pub struct UpdateApiKeyRequest {
 pub fn generate_api_key() -> (String, String, String) {
     let mut rng = rand::thread_rng();
     let key_bytes: [u8; 32] = rng.gen();
-    let key = format!("cv_{}", base64::Engine::encode(
-        &base64::engine::general_purpose::URL_SAFE_NO_PAD,
-        key_bytes
-    ));
+    let key = format!(
+        "cv_{}",
+        base64::Engine::encode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, key_bytes)
+    );
     let prefix = key[..12].to_string();
     let hash = hash_api_key(&key);
     (key, prefix, hash)
@@ -181,8 +181,19 @@ pub async fn find_by_key(pool: &DbPool, api_key: &str) -> Result<Option<ApiKey>,
     let hash = hash_api_key(api_key);
 
     let row: Option<(
-        String, String, String, String, String, i64, i64, Option<i64>,
-        String, String, Option<String>, Option<String>, Option<String>
+        String,
+        String,
+        String,
+        String,
+        String,
+        i64,
+        i64,
+        Option<i64>,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
     )> = sqlx::query_as(
         r#"
         SELECT id, name, key_hash, key_prefix, role, is_active, rate_limit, daily_limit,
@@ -196,53 +207,21 @@ pub async fn find_by_key(pool: &DbPool, api_key: &str) -> Result<Option<ApiKey>,
     .await?;
 
     match row {
-        Some((id, name, key_hash, key_prefix, role, is_active, rate_limit, daily_limit,
-              created_at, updated_at, last_used_at, created_by, notes)) => {
-            Ok(Some(ApiKey {
-                id,
-                name,
-                key_hash,
-                key_prefix,
-                role: ApiKeyRole::from(role.as_str()),
-                is_active: is_active != 0,
-                rate_limit,
-                daily_limit,
-                created_at: DateTime::parse_from_rfc3339(&created_at)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
-                updated_at: DateTime::parse_from_rfc3339(&updated_at)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
-                last_used_at: last_used_at.and_then(|s|
-                    DateTime::parse_from_rfc3339(&s).ok().map(|dt| dt.with_timezone(&Utc))
-                ),
-                created_by,
-                notes,
-            }))
-        }
-        None => Ok(None),
-    }
-}
-
-/// Lista tutte le API Keys
-pub async fn list_all(pool: &DbPool) -> Result<Vec<ApiKey>, sqlx::Error> {
-    let rows: Vec<(
-        String, String, String, String, String, i64, i64, Option<i64>,
-        String, String, Option<String>, Option<String>, Option<String>
-    )> = sqlx::query_as(
-        r#"
-        SELECT id, name, key_hash, key_prefix, role, is_active, rate_limit, daily_limit,
-               created_at, updated_at, last_used_at, created_by, notes
-        FROM api_keys
-        ORDER BY created_at DESC
-        "#,
-    )
-    .fetch_all(pool)
-    .await?;
-
-    Ok(rows.into_iter().map(|(id, name, key_hash, key_prefix, role, is_active, rate_limit, daily_limit,
-          created_at, updated_at, last_used_at, created_by, notes)| {
-        ApiKey {
+        Some((
+            id,
+            name,
+            key_hash,
+            key_prefix,
+            role,
+            is_active,
+            rate_limit,
+            daily_limit,
+            created_at,
+            updated_at,
+            last_used_at,
+            created_by,
+            notes,
+        )) => Ok(Some(ApiKey {
             id,
             name,
             key_hash,
@@ -257,13 +236,89 @@ pub async fn list_all(pool: &DbPool) -> Result<Vec<ApiKey>, sqlx::Error> {
             updated_at: DateTime::parse_from_rfc3339(&updated_at)
                 .map(|dt| dt.with_timezone(&Utc))
                 .unwrap_or_else(|_| Utc::now()),
-            last_used_at: last_used_at.and_then(|s|
-                DateTime::parse_from_rfc3339(&s).ok().map(|dt| dt.with_timezone(&Utc))
-            ),
+            last_used_at: last_used_at.and_then(|s| {
+                DateTime::parse_from_rfc3339(&s)
+                    .ok()
+                    .map(|dt| dt.with_timezone(&Utc))
+            }),
             created_by,
             notes,
-        }
-    }).collect())
+        })),
+        None => Ok(None),
+    }
+}
+
+/// Lista tutte le API Keys
+pub async fn list_all(pool: &DbPool) -> Result<Vec<ApiKey>, sqlx::Error> {
+    let rows: Vec<(
+        String,
+        String,
+        String,
+        String,
+        String,
+        i64,
+        i64,
+        Option<i64>,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        r#"
+        SELECT id, name, key_hash, key_prefix, role, is_active, rate_limit, daily_limit,
+               created_at, updated_at, last_used_at, created_by, notes
+        FROM api_keys
+        ORDER BY created_at DESC
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(
+            |(
+                id,
+                name,
+                key_hash,
+                key_prefix,
+                role,
+                is_active,
+                rate_limit,
+                daily_limit,
+                created_at,
+                updated_at,
+                last_used_at,
+                created_by,
+                notes,
+            )| {
+                ApiKey {
+                    id,
+                    name,
+                    key_hash,
+                    key_prefix,
+                    role: ApiKeyRole::from(role.as_str()),
+                    is_active: is_active != 0,
+                    rate_limit,
+                    daily_limit,
+                    created_at: DateTime::parse_from_rfc3339(&created_at)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
+                    updated_at: DateTime::parse_from_rfc3339(&updated_at)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
+                    last_used_at: last_used_at.and_then(|s| {
+                        DateTime::parse_from_rfc3339(&s)
+                            .ok()
+                            .map(|dt| dt.with_timezone(&Utc))
+                    }),
+                    created_by,
+                    notes,
+                }
+            },
+        )
+        .collect())
 }
 
 /// Aggiorna timestamp ultimo uso
@@ -295,7 +350,11 @@ pub async fn update_api_key(
     }
     if let Some(is_active) = request.is_active {
         updates.push("is_active = ?");
-        values.push(if is_active { "1".to_string() } else { "0".to_string() });
+        values.push(if is_active {
+            "1".to_string()
+        } else {
+            "0".to_string()
+        });
     }
     if let Some(rate_limit) = request.rate_limit {
         updates.push("rate_limit = ?");
@@ -313,10 +372,7 @@ pub async fn update_api_key(
     updates.push("updated_at = ?");
     values.push(Utc::now().to_rfc3339());
 
-    let query = format!(
-        "UPDATE api_keys SET {} WHERE id = ?",
-        updates.join(", ")
-    );
+    let query = format!("UPDATE api_keys SET {} WHERE id = ?", updates.join(", "));
 
     let mut q = sqlx::query(&query);
     for value in &values {
@@ -339,11 +395,10 @@ pub async fn delete_api_key(pool: &DbPool, id: &str) -> Result<bool, sqlx::Error
 
 /// Verifica se esiste almeno un admin
 pub async fn has_admin(pool: &DbPool) -> Result<bool, sqlx::Error> {
-    let count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM api_keys WHERE role = 'admin' AND is_active = 1"
-    )
-    .fetch_one(pool)
-    .await?;
+    let count: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM api_keys WHERE role = 'admin' AND is_active = 1")
+            .fetch_one(pool)
+            .await?;
     Ok(count.0 > 0)
 }
 
@@ -366,13 +421,15 @@ pub async fn ensure_initial_admin(pool: &DbPool) -> Result<Option<ApiKeyCreated>
 }
 
 /// Recupera la chiave API in chiaro per un utente (solo per ruolo "user", non admin)
-pub async fn get_plaintext_key(pool: &DbPool, api_key_id: &str) -> Result<Option<String>, sqlx::Error> {
-    let row: Option<(Option<String>,)> = sqlx::query_as(
-        "SELECT key_plaintext FROM api_keys WHERE id = ? AND role = 'user'"
-    )
-    .bind(api_key_id)
-    .fetch_optional(pool)
-    .await?;
+pub async fn get_plaintext_key(
+    pool: &DbPool,
+    api_key_id: &str,
+) -> Result<Option<String>, sqlx::Error> {
+    let row: Option<(Option<String>,)> =
+        sqlx::query_as("SELECT key_plaintext FROM api_keys WHERE id = ? AND role = 'user'")
+            .bind(api_key_id)
+            .fetch_optional(pool)
+            .await?;
 
     Ok(row.and_then(|(plaintext,)| plaintext))
 }

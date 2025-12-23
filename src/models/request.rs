@@ -35,7 +35,19 @@ pub struct BatchConvertRequest {
 }
 
 /// Priorità del job nella coda
-#[derive(Debug, Clone, Copy, Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord, ToSchema, Default)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Deserialize,
+    serde::Serialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    ToSchema,
+    Default,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum JobPriority {
     Low = 0,

@@ -1,7 +1,7 @@
 //! Handler per conversione SVG
 
-use std::path::Path;
 use crate::error::{AppError, Result};
+use std::path::Path;
 
 /// Converte SVG in formato raster (PNG, JPG, WebP, etc.)
 pub fn convert_svg_to_raster(

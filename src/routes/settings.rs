@@ -6,8 +6,8 @@ use axum::{
     Extension, Json, Router,
 };
 
-use crate::db::user_settings::{self, UpdateSettingsRequest, UserSettings};
 use crate::db::oauth_users;
+use crate::db::user_settings::{self, UpdateSettingsRequest, UserSettings};
 use crate::db::DbPool;
 use crate::error::{AppError, Result};
 use crate::routes::convert::AuthInfo;
@@ -42,9 +42,9 @@ pub async fn get_settings(
     Extension(auth): Extension<AuthInfo>,
 ) -> Result<Json<UserSettings>> {
     // Richiede autenticazione
-    let api_key_id = auth.api_key_id.ok_or_else(|| {
-        AppError::Unauthorized("Autenticazione richiesta".to_string())
-    })?;
+    let api_key_id = auth
+        .api_key_id
+        .ok_or_else(|| AppError::Unauthorized("Autenticazione richiesta".to_string()))?;
 
     // Trova l'utente OAuth associato all'API key
     let user = oauth_users::find_by_api_key_id(&state.db, &api_key_id)
@@ -77,9 +77,9 @@ pub async fn update_settings(
     Json(update): Json<UpdateSettingsRequest>,
 ) -> Result<Json<UserSettings>> {
     // Richiede autenticazione
-    let api_key_id = auth.api_key_id.ok_or_else(|| {
-        AppError::Unauthorized("Autenticazione richiesta".to_string())
-    })?;
+    let api_key_id = auth
+        .api_key_id
+        .ok_or_else(|| AppError::Unauthorized("Autenticazione richiesta".to_string()))?;
 
     // Trova l'utente OAuth associato all'API key
     let user = oauth_users::find_by_api_key_id(&state.db, &api_key_id)

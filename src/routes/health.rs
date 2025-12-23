@@ -51,7 +51,10 @@ pub async fn get_formats(State(state): State<HealthState>) -> Json<FormatsRespon
         // Image: usa image crate (pure Rust, sempre disponibile)
         image: FormatSupport {
             input: formats::IMAGE_INPUT.iter().map(|s| s.to_string()).collect(),
-            output: formats::IMAGE_OUTPUT.iter().map(|s| s.to_string()).collect(),
+            output: formats::IMAGE_OUTPUT
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             available: true,
         },
         // SVG: usa resvg crate (pure Rust, sempre disponibile)
@@ -62,8 +65,14 @@ pub async fn get_formats(State(state): State<HealthState>) -> Json<FormatsRespon
         },
         // Document: usa printpdf crate (pure Rust, sempre disponibile)
         document: FormatSupport {
-            input: formats::DOCUMENT_INPUT.iter().map(|s| s.to_string()).collect(),
-            output: formats::DOCUMENT_OUTPUT.iter().map(|s| s.to_string()).collect(),
+            input: formats::DOCUMENT_INPUT
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            output: formats::DOCUMENT_OUTPUT
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             available: true,
         },
         // Audio: richiede FFmpeg
@@ -74,7 +83,10 @@ pub async fn get_formats(State(state): State<HealthState>) -> Json<FormatsRespon
                 vec![]
             },
             output: if ffmpeg_available {
-                formats::AUDIO_OUTPUT.iter().map(|s| s.to_string()).collect()
+                formats::AUDIO_OUTPUT
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect()
             } else {
                 vec![]
             },
@@ -88,7 +100,10 @@ pub async fn get_formats(State(state): State<HealthState>) -> Json<FormatsRespon
                 vec![]
             },
             output: if ffmpeg_available {
-                formats::VIDEO_OUTPUT.iter().map(|s| s.to_string()).collect()
+                formats::VIDEO_OUTPUT
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect()
             } else {
                 vec![]
             },

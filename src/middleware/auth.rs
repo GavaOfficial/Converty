@@ -41,14 +41,11 @@ pub async fn api_key_auth(
         .and_then(|v| v.to_str().ok());
 
     // Controlla query parameter api_key
-    let api_key_query = request
-        .uri()
-        .query()
-        .and_then(|q| {
-            q.split('&')
-                .find(|p| p.starts_with("api_key="))
-                .map(|p| p.trim_start_matches("api_key="))
-        });
+    let api_key_query = request.uri().query().and_then(|q| {
+        q.split('&')
+            .find(|p| p.starts_with("api_key="))
+            .map(|p| p.trim_start_matches("api_key="))
+    });
 
     // Controlla Authorization Bearer
     let api_key_bearer = request
@@ -58,9 +55,7 @@ pub async fn api_key_auth(
         .and_then(|v| v.strip_prefix("Bearer "));
 
     // Ottieni la chiave fornita
-    let provided_key = api_key_header
-        .or(api_key_query)
-        .or(api_key_bearer);
+    let provided_key = api_key_header.or(api_key_query).or(api_key_bearer);
 
     let auth_info = match provided_key {
         Some(key) => {
@@ -124,7 +119,9 @@ pub async fn api_key_auth(
 
     // Per le route admin, inserisci anche il ruolo e l'id separatamente
     request.extensions_mut().insert(auth_info.role.clone());
-    request.extensions_mut().insert(auth_info.api_key_id.clone());
+    request
+        .extensions_mut()
+        .insert(auth_info.api_key_id.clone());
 
     Ok(next.run(request).await)
 }

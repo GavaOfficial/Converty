@@ -75,11 +75,11 @@ impl Config {
 pub mod formats {
     // Immagini raster
     pub const IMAGE_INPUT: &[&str] = &[
-        "png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "ico",
-        "avif", "qoi", "pnm", "tga", "dds", "hdr", "exr"
+        "png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "ico", "avif", "qoi", "pnm", "tga",
+        "dds", "hdr", "exr",
     ];
     pub const IMAGE_OUTPUT: &[&str] = &[
-        "png", "jpg", "jpeg", "webp", "bmp", "gif", "avif", "qoi", "tiff"
+        "png", "jpg", "jpeg", "webp", "bmp", "gif", "avif", "qoi", "tiff",
     ];
 
     // SVG (vettoriale → raster)

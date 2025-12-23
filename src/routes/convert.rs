@@ -14,7 +14,10 @@ use crate::db::DbPool;
 use crate::error::{AppError, Result};
 use crate::handlers::image as image_handler;
 use crate::handlers::pdf as pdf_handler;
-use crate::models::{BatchConvertResponse, ConversionType, ConvertQuery, ConvertedFile, FailedFile, ImageOptions, PdfConvertQuery};
+use crate::models::{
+    BatchConvertResponse, ConversionType, ConvertQuery, ConvertedFile, FailedFile, ImageOptions,
+    PdfConvertQuery,
+};
 use crate::services::{converter, queue::JobQueue};
 use crate::utils::get_extension;
 
@@ -120,7 +123,8 @@ pub async fn convert_image(
                 start.elapsed().as_millis() as i64,
                 true,
                 None,
-            ).await;
+            )
+            .await;
 
             // Incrementa uso guest
             if auth.is_guest {
@@ -132,7 +136,10 @@ pub async fn convert_image(
             let content_type = get_content_type(&query.output_format);
             let output_filename = format!(
                 "{}.{}",
-                filename.rsplit_once('.').map(|(n, _)| n).unwrap_or(&filename),
+                filename
+                    .rsplit_once('.')
+                    .map(|(n, _)| n)
+                    .unwrap_or(&filename),
                 query.output_format
             );
 
@@ -160,7 +167,8 @@ pub async fn convert_image(
                 start.elapsed().as_millis() as i64,
                 false,
                 Some(e.to_string()),
-            ).await;
+            )
+            .await;
 
             Err(e)
         }
@@ -187,7 +195,14 @@ pub async fn convert_document(
     Query(query): Query<ConvertQuery>,
     mut multipart: Multipart,
 ) -> Result<impl IntoResponse> {
-    convert_single_tracked(&state, &auth, &mut multipart, &query, ConversionType::Document).await
+    convert_single_tracked(
+        &state,
+        &auth,
+        &mut multipart,
+        &query,
+        ConversionType::Document,
+    )
+    .await
 }
 
 /// Converti un file audio (richiede FFmpeg)
@@ -279,7 +294,10 @@ pub async fn convert_pdf(
         .ok_or_else(|| AppError::MissingField("file".to_string()))?;
 
     let filename = field.file_name().unwrap_or("file.pdf").to_string();
-    let base_name = filename.rsplit_once('.').map(|(n, _)| n).unwrap_or(&filename);
+    let base_name = filename
+        .rsplit_once('.')
+        .map(|(n, _)| n)
+        .unwrap_or(&filename);
     let data = field
         .bytes()
         .await
@@ -295,12 +313,7 @@ pub async fn convert_pdf(
     // Esegui conversione PDF -> Immagine (singola o tutte le pagine)
     let result = if query.all_pages {
         // Converti tutte le pagine e crea ZIP
-        pdf_handler::convert_pdf_to_zip(
-            &data,
-            &query.output_format,
-            Some(query.dpi),
-            base_name,
-        )
+        pdf_handler::convert_pdf_to_zip(&data, &query.output_format, Some(query.dpi), base_name)
     } else {
         // Converti singola pagina
         pdf_handler::convert_pdf_to_image(
@@ -314,7 +327,11 @@ pub async fn convert_pdf(
     match result {
         Ok(output) => {
             let output_size = output.len() as i64;
-            let output_format_for_stats = if query.all_pages { "zip" } else { &query.output_format };
+            let output_format_for_stats = if query.all_pages {
+                "zip"
+            } else {
+                &query.output_format
+            };
 
             // Registra conversione nel database
             record_conversion(
@@ -328,7 +345,8 @@ pub async fn convert_pdf(
                 start.elapsed().as_millis() as i64,
                 true,
                 None,
-            ).await;
+            )
+            .await;
 
             // Incrementa uso guest
             if auth.is_guest {
@@ -374,7 +392,8 @@ pub async fn convert_pdf(
                 start.elapsed().as_millis() as i64,
                 false,
                 Some(e.to_string()),
-            ).await;
+            )
+            .await;
 
             Err(e)
         }
@@ -442,7 +461,8 @@ async fn convert_single_tracked(
                 start.elapsed().as_millis() as i64,
                 true,
                 None,
-            ).await;
+            )
+            .await;
 
             // Incrementa uso guest
             if auth.is_guest {
@@ -454,7 +474,10 @@ async fn convert_single_tracked(
             let content_type = get_content_type(&query.output_format);
             let output_filename = format!(
                 "{}.{}",
-                filename.rsplit_once('.').map(|(n, _)| n).unwrap_or(&filename),
+                filename
+                    .rsplit_once('.')
+                    .map(|(n, _)| n)
+                    .unwrap_or(&filename),
                 query.output_format
             );
 
@@ -482,7 +505,8 @@ async fn convert_single_tracked(
                 start.elapsed().as_millis() as i64,
                 false,
                 Some(e.to_string()),
-            ).await;
+            )
+            .await;
 
             Err(e)
         }
@@ -547,7 +571,13 @@ pub async fn convert_batch(
         if let Some(conv_type) = conversion_type {
             let type_str = conv_type.to_string();
 
-            match converter::convert(&data, &input_format, &query.output_format, &conv_type, query.quality) {
+            match converter::convert(
+                &data,
+                &input_format,
+                &query.output_format,
+                &conv_type,
+                query.quality,
+            ) {
                 Ok(output) => {
                     let output_size = output.len() as i64;
 
@@ -563,7 +593,8 @@ pub async fn convert_batch(
                         start.elapsed().as_millis() as i64,
                         true,
                         None,
-                    ).await;
+                    )
+                    .await;
 
                     converted.push(ConvertedFile {
                         original_name: filename,
@@ -584,7 +615,8 @@ pub async fn convert_batch(
                         start.elapsed().as_millis() as i64,
                         false,
                         Some(e.to_string()),
-                    ).await;
+                    )
+                    .await;
 
                     failed.push(FailedFile {
                         original_name: filename,

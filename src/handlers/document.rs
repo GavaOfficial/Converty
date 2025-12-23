@@ -113,7 +113,9 @@ fn text_to_pdf(content: &str, input_format: &str) -> Result<Vec<u8>> {
     doc.save(&mut buffer)
         .map_err(|e| AppError::ConversionError(e.to_string()))?;
 
-    Ok(buffer.into_inner().map_err(|e| AppError::IoError(e.into_error()))?)
+    Ok(buffer
+        .into_inner()
+        .map_err(|e| AppError::IoError(e.into_error()))?)
 }
 
 fn markdown_to_text(content: &str) -> String {
@@ -191,7 +193,9 @@ fn to_html(content: &str, input_format: &str) -> String {
 
 fn markdown_to_html(content: &str) -> String {
     // Conversione markdown semplice
-    let mut html = String::from("<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n</head>\n<body>\n");
+    let mut html = String::from(
+        "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n</head>\n<body>\n",
+    );
 
     for line in content.lines() {
         let trimmed = line.trim();
@@ -216,7 +220,9 @@ fn markdown_to_html(content: &str) -> String {
 }
 
 fn text_to_html(content: &str) -> String {
-    let mut html = String::from("<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n</head>\n<body>\n<pre>\n");
+    let mut html = String::from(
+        "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n</head>\n<body>\n<pre>\n",
+    );
     html.push_str(&content.replace('<', "&lt;").replace('>', "&gt;"));
     html.push_str("\n</pre>\n</body>\n</html>");
     html

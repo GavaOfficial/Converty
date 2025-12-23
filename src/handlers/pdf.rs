@@ -114,11 +114,14 @@ fn run_pdftoppm(
     let dpi_str = dpi.to_string();
 
     let args = vec![
-        "-f", &page_str,      // Prima pagina
-        "-l", &page_str,      // Ultima pagina (stessa = singola pagina)
-        "-r", &dpi_str,       // DPI
-        "-singlefile",        // Non aggiunge suffisso numerico
-        format_arg,           // Formato output
+        "-f",
+        &page_str, // Prima pagina
+        "-l",
+        &page_str, // Ultima pagina (stessa = singola pagina)
+        "-r",
+        &dpi_str,      // DPI
+        "-singlefile", // Non aggiunge suffisso numerico
+        format_arg,    // Formato output
         input_path.to_str().unwrap_or(""),
         output_prefix.to_str().unwrap_or(""),
     ];
@@ -168,9 +171,7 @@ pub fn get_pdf_page_count(input_data: &[u8]) -> Result<u32> {
         .map_err(|e| AppError::PopplerError(format!("Impossibile eseguire pdfinfo: {}", e)))?;
 
     if !output.status.success() {
-        return Err(AppError::PopplerError(
-            "pdfinfo fallito".to_string(),
-        ));
+        return Err(AppError::PopplerError("pdfinfo fallito".to_string()));
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);

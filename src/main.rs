@@ -11,15 +11,19 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use converty::config::Config;
 use converty::db;
-use converty::db::api_keys::{self, ApiKey, ApiKeyCreated, ApiKeyRole, CreateApiKeyRequest, UpdateApiKeyRequest};
+use converty::db::api_keys::{
+    self, ApiKey, ApiKeyCreated, ApiKeyRole, CreateApiKeyRequest, UpdateApiKeyRequest,
+};
 use converty::db::jobs::{JobRecord, JobsListResponse, JobsQuery};
 use converty::db::stats::GuestConfig;
 use converty::middleware::auth::{self, AuthState};
 use converty::middleware::rate_limit;
-use converty::models::{*, JobPriority};
+use converty::models::{JobPriority, *};
 use converty::routes;
 use converty::routes::admin::{ApiKeyWithStats, CleanupRequest, CleanupResponse, MessageResponse};
-use converty::routes::auth::{GoogleAuthUrlResponse, CurrentUserResponse, UserInfo, UserStats as AuthUserStats};
+use converty::routes::auth::{
+    CurrentUserResponse, GoogleAuthUrlResponse, UserInfo, UserStats as AuthUserStats,
+};
 use converty::services::queue;
 use converty::utils::check_ffmpeg_available;
 
@@ -153,8 +157,8 @@ async fn main() {
     let config = Config::from_env();
 
     // Inizializza database SQLite
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "sqlite:converty.db?mode=rwc".to_string());
+    let database_url =
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:converty.db?mode=rwc".to_string());
 
     tracing::info!("Connessione al database: {}", database_url);
 
@@ -214,7 +218,9 @@ async fn main() {
         ]);
 
     // Auth state per middleware
-    let auth_state = AuthState { db: db_pool.clone() };
+    let auth_state = AuthState {
+        db: db_pool.clone(),
+    };
 
     // API routes con middleware
     let api_routes = routes::create_router(
@@ -226,7 +232,10 @@ async fn main() {
         config.google_client_secret.clone(),
         config.frontend_url.clone(),
     )
-    .layer(middleware::from_fn_with_state(auth_state, auth::api_key_auth))
+    .layer(middleware::from_fn_with_state(
+        auth_state,
+        auth::api_key_auth,
+    ))
     .layer(middleware::from_fn(move |req, next| {
         let limiter = rate_limiter.clone();
         async move { rate_limit::rate_limit_middleware(limiter, req, next).await }
@@ -303,7 +312,11 @@ async fn main() {
             tracing::info!("Avvio cleanup job vecchi...");
             match converty::db::jobs::cleanup_old_jobs(&cleanup_pool, 7).await {
                 Ok((count, files)) => {
-                    tracing::info!("Cleanup completato: {} job eliminati, {} file da rimuovere", count, files.len());
+                    tracing::info!(
+                        "Cleanup completato: {} job eliminati, {} file da rimuovere",
+                        count,
+                        files.len()
+                    );
                     for file in files {
                         if let Err(e) = std::fs::remove_file(&file) {
                             tracing::warn!("Errore rimozione file {}: {}", file, e);

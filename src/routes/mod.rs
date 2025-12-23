@@ -30,7 +30,12 @@ pub fn create_router(
         .merge(stats::router(db.clone()))
         .merge(admin::router(db.clone()))
         .merge(settings::router(db.clone()))
-        .merge(auth::router(db, google_client_id, google_client_secret, frontend_url))
+        .merge(auth::router(
+            db,
+            google_client_id,
+            google_client_secret,
+            frontend_url,
+        ))
 }
 
 #[cfg(not(feature = "google-auth"))]

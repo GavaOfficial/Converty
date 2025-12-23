@@ -98,7 +98,8 @@ impl GoogleDriveService {
 
         // Altrimenti, refresh
         let refresh_token = tokens.refresh_token.ok_or(DriveError::TokenExpired)?;
-        self.refresh_token(pool, user_id, &refresh_token, client_id, client_secret).await
+        self.refresh_token(pool, user_id, &refresh_token, client_id, client_secret)
+            .await
     }
 
     /// Refresh del token
@@ -117,7 +118,8 @@ impl GoogleDriveService {
             ("grant_type", "refresh_token"),
         ];
 
-        let response = self.client
+        let response = self
+            .client
             .post("https://oauth2.googleapis.com/token")
             .form(&params)
             .send()
@@ -155,10 +157,18 @@ impl GoogleDriveService {
         folder_name: &str,
     ) -> Result<String, DriveError> {
         // Prima cerca se la cartella esiste già
-        let query = format!("name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false", folder_name);
-        let url = format!("{}/files?q={}&fields=files(id,name)", DRIVE_API_BASE, urlencoding::encode(&query));
+        let query = format!(
+            "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+            folder_name
+        );
+        let url = format!(
+            "{}/files?q={}&fields=files(id,name)",
+            DRIVE_API_BASE,
+            urlencoding::encode(&query)
+        );
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .bearer_auth(access_token)
             .send()
@@ -186,7 +196,8 @@ impl GoogleDriveService {
             "mimeType": "application/vnd.google-apps.folder"
         });
 
-        let response = self.client
+        let response = self
+            .client
             .post(&format!("{}/files", DRIVE_API_BASE))
             .bearer_auth(access_token)
             .json(&metadata)
@@ -196,7 +207,10 @@ impl GoogleDriveService {
 
         if !response.status().is_success() {
             let error = response.text().await.unwrap_or_default();
-            return Err(DriveError::ApiFailed(format!("Create folder failed: {}", error)));
+            return Err(DriveError::ApiFailed(format!(
+                "Create folder failed: {}",
+                error
+            )));
         }
 
         let folder: DriveFile = response
@@ -248,10 +262,14 @@ impl GoogleDriveService {
             DRIVE_UPLOAD_BASE
         );
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .bearer_auth(access_token)
-            .header("Content-Type", format!("multipart/related; boundary={}", boundary))
+            .header(
+                "Content-Type",
+                format!("multipart/related; boundary={}", boundary),
+            )
             .body(body)
             .send()
             .await
@@ -259,7 +277,10 @@ impl GoogleDriveService {
 
         if !response.status().is_success() {
             let error = response.text().await.unwrap_or_default();
-            return Err(DriveError::UploadFailed(format!("Upload failed: {}", error)));
+            return Err(DriveError::UploadFailed(format!(
+                "Upload failed: {}",
+                error
+            )));
         }
 
         let file: DriveFile = response
@@ -282,18 +303,18 @@ impl GoogleDriveService {
             .map_err(|e| DriveError::UploadFailed(format!("Failed to read file: {}", e)))?;
 
         let name = filename.unwrap_or_else(|| {
-            file_path.file_name()
+            file_path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("converted_file")
         });
 
-        let ext = file_path.extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
+        let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
         let mime_type = get_mime_type(ext);
 
-        self.upload_file(access_token, folder_id, name, data, mime_type).await
+        self.upload_file(access_token, folder_id, name, data, mime_type)
+            .await
     }
 
     /// Ottiene la thumbnail di un file da Drive
@@ -304,12 +325,10 @@ impl GoogleDriveService {
         size: u32,
     ) -> Result<Vec<u8>, DriveError> {
         // Prima ottieni il thumbnailLink dal file metadata
-        let url = format!(
-            "{}/files/{}?fields=thumbnailLink",
-            DRIVE_API_BASE, file_id
-        );
+        let url = format!("{}/files/{}?fields=thumbnailLink", DRIVE_API_BASE, file_id);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .bearer_auth(access_token)
             .send()
@@ -318,7 +337,10 @@ impl GoogleDriveService {
 
         if !response.status().is_success() {
             let error = response.text().await.unwrap_or_default();
-            return Err(DriveError::ApiFailed(format!("Get file metadata failed: {}", error)));
+            return Err(DriveError::ApiFailed(format!(
+                "Get file metadata failed: {}",
+                error
+            )));
         }
 
         #[derive(Deserialize)]
@@ -342,7 +364,8 @@ impl GoogleDriveService {
         };
 
         // Scarica la thumbnail
-        let thumb_response = self.client
+        let thumb_response = self
+            .client
             .get(&thumbnail_url)
             .bearer_auth(access_token)
             .send()
@@ -350,7 +373,9 @@ impl GoogleDriveService {
             .map_err(|e| DriveError::ApiFailed(e.to_string()))?;
 
         if !thumb_response.status().is_success() {
-            return Err(DriveError::ApiFailed("Failed to download thumbnail".to_string()));
+            return Err(DriveError::ApiFailed(
+                "Failed to download thumbnail".to_string(),
+            ));
         }
 
         let bytes = thumb_response
@@ -362,14 +387,11 @@ impl GoogleDriveService {
     }
 
     /// Elimina un file da Drive
-    pub async fn delete_file(
-        &self,
-        access_token: &str,
-        file_id: &str,
-    ) -> Result<(), DriveError> {
+    pub async fn delete_file(&self, access_token: &str, file_id: &str) -> Result<(), DriveError> {
         let url = format!("{}/files/{}", DRIVE_API_BASE, file_id);
 
-        let response = self.client
+        let response = self
+            .client
             .delete(&url)
             .bearer_auth(access_token)
             .send()

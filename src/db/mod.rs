@@ -171,67 +171,48 @@ async fn run_migrations(pool: &DbPool) -> Result<(), sqlx::Error> {
     .await?;
 
     // Indici per jobs
-    sqlx::query(
-        r#"CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)"#,
-    )
-    .execute(pool)
-    .await?;
+    sqlx::query(r#"CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)"#)
+        .execute(pool)
+        .await?;
 
-    sqlx::query(
-        r#"CREATE INDEX IF NOT EXISTS idx_jobs_api_key ON jobs(api_key_id)"#,
-    )
-    .execute(pool)
-    .await?;
+    sqlx::query(r#"CREATE INDEX IF NOT EXISTS idx_jobs_api_key ON jobs(api_key_id)"#)
+        .execute(pool)
+        .await?;
 
-    sqlx::query(
-        r#"CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at)"#,
-    )
-    .execute(pool)
-    .await?;
+    sqlx::query(r#"CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at)"#)
+        .execute(pool)
+        .await?;
 
     // Aggiungi colonne per limiti job a api_keys (ignora errore se esistono già)
-    let _ = sqlx::query(
-        r#"ALTER TABLE api_keys ADD COLUMN max_concurrent_jobs INTEGER DEFAULT 5"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"ALTER TABLE api_keys ADD COLUMN max_concurrent_jobs INTEGER DEFAULT 5"#)
+        .execute(pool)
+        .await;
 
-    let _ = sqlx::query(
-        r#"ALTER TABLE api_keys ADD COLUMN job_timeout_seconds INTEGER DEFAULT 300"#,
-    )
-    .execute(pool)
-    .await;
+    let _ =
+        sqlx::query(r#"ALTER TABLE api_keys ADD COLUMN job_timeout_seconds INTEGER DEFAULT 300"#)
+            .execute(pool)
+            .await;
 
     // Nuove colonne per jobs: priority, webhook, source_url, expires_at, retry_count
-    let _ = sqlx::query(
-        r#"ALTER TABLE jobs ADD COLUMN priority TEXT DEFAULT 'normal'"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"ALTER TABLE jobs ADD COLUMN priority TEXT DEFAULT 'normal'"#)
+        .execute(pool)
+        .await;
 
-    let _ = sqlx::query(
-        r#"ALTER TABLE jobs ADD COLUMN webhook_url TEXT"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"ALTER TABLE jobs ADD COLUMN webhook_url TEXT"#)
+        .execute(pool)
+        .await;
 
-    let _ = sqlx::query(
-        r#"ALTER TABLE jobs ADD COLUMN source_url TEXT"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"ALTER TABLE jobs ADD COLUMN source_url TEXT"#)
+        .execute(pool)
+        .await;
 
-    let _ = sqlx::query(
-        r#"ALTER TABLE jobs ADD COLUMN expires_at TEXT"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"ALTER TABLE jobs ADD COLUMN expires_at TEXT"#)
+        .execute(pool)
+        .await;
 
-    let _ = sqlx::query(
-        r#"ALTER TABLE jobs ADD COLUMN retry_count INTEGER DEFAULT 0"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"ALTER TABLE jobs ADD COLUMN retry_count INTEGER DEFAULT 0"#)
+        .execute(pool)
+        .await;
 
     // Indice per priority (job prioritari elaborati prima)
     let _ = sqlx::query(
@@ -241,11 +222,9 @@ async fn run_migrations(pool: &DbPool) -> Result<(), sqlx::Error> {
     .await;
 
     // Indice per expires_at (per cleanup)
-    let _ = sqlx::query(
-        r#"CREATE INDEX IF NOT EXISTS idx_jobs_expires_at ON jobs(expires_at)"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"CREATE INDEX IF NOT EXISTS idx_jobs_expires_at ON jobs(expires_at)"#)
+        .execute(pool)
+        .await;
 
     // Crea tabella OAuth users (Google login)
     sqlx::query(
@@ -274,51 +253,37 @@ async fn run_migrations(pool: &DbPool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
-    sqlx::query(
-        r#"CREATE INDEX IF NOT EXISTS idx_oauth_users_email ON oauth_users(email)"#,
-    )
-    .execute(pool)
-    .await?;
+    sqlx::query(r#"CREATE INDEX IF NOT EXISTS idx_oauth_users_email ON oauth_users(email)"#)
+        .execute(pool)
+        .await?;
 
-    sqlx::query(
-        r#"CREATE INDEX IF NOT EXISTS idx_oauth_users_api_key ON oauth_users(api_key_id)"#,
-    )
-    .execute(pool)
-    .await?;
+    sqlx::query(r#"CREATE INDEX IF NOT EXISTS idx_oauth_users_api_key ON oauth_users(api_key_id)"#)
+        .execute(pool)
+        .await?;
 
     // Aggiungi colonna key_plaintext per utenti non-admin (ignora errore se esiste)
     // Admin keys restano hashate, user keys salvate in chiaro per poterle recuperare
-    let _ = sqlx::query(
-        r#"ALTER TABLE api_keys ADD COLUMN key_plaintext TEXT"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"ALTER TABLE api_keys ADD COLUMN key_plaintext TEXT"#)
+        .execute(pool)
+        .await;
 
     // Aggiungi original_filename alla tabella jobs
-    let _ = sqlx::query(
-        r#"ALTER TABLE jobs ADD COLUMN original_filename TEXT"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"ALTER TABLE jobs ADD COLUMN original_filename TEXT"#)
+        .execute(pool)
+        .await;
 
     // Aggiungi colonne token OAuth alla tabella oauth_users
-    let _ = sqlx::query(
-        r#"ALTER TABLE oauth_users ADD COLUMN access_token TEXT"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"ALTER TABLE oauth_users ADD COLUMN access_token TEXT"#)
+        .execute(pool)
+        .await;
 
-    let _ = sqlx::query(
-        r#"ALTER TABLE oauth_users ADD COLUMN refresh_token TEXT"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"ALTER TABLE oauth_users ADD COLUMN refresh_token TEXT"#)
+        .execute(pool)
+        .await;
 
-    let _ = sqlx::query(
-        r#"ALTER TABLE oauth_users ADD COLUMN token_expires_at TEXT"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"ALTER TABLE oauth_users ADD COLUMN token_expires_at TEXT"#)
+        .execute(pool)
+        .await;
 
     // Tabella user_settings per preferenze utente
     sqlx::query(
@@ -339,11 +304,9 @@ async fn run_migrations(pool: &DbPool) -> Result<(), sqlx::Error> {
     .await?;
 
     // Aggiungi drive_file_id alla tabella jobs per tracking upload Drive
-    let _ = sqlx::query(
-        r#"ALTER TABLE jobs ADD COLUMN drive_file_id TEXT"#,
-    )
-    .execute(pool)
-    .await;
+    let _ = sqlx::query(r#"ALTER TABLE jobs ADD COLUMN drive_file_id TEXT"#)
+        .execute(pool)
+        .await;
 
     // Aggiungi drive_filter_types a user_settings per filtrare quali tipi salvare su Drive
     // Valori: "all" o lista separata da virgole es. "image,audio,video,document"

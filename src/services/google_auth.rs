@@ -1,4 +1,4 @@
-use jsonwebtoken::{decode, decode_header, DecodingKey, Validation, Algorithm};
+use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -135,20 +135,20 @@ pub async fn verify_google_token(
     keys_cache: &GoogleKeysCache,
 ) -> Result<GoogleClaims, GoogleAuthError> {
     // Decodifica l'header per ottenere il kid
-    let header = decode_header(id_token)
-        .map_err(|e| GoogleAuthError::InvalidToken(e.to_string()))?;
+    let header =
+        decode_header(id_token).map_err(|e| GoogleAuthError::InvalidToken(e.to_string()))?;
 
-    let kid = header.kid.ok_or_else(|| {
-        GoogleAuthError::InvalidToken("Token senza kid nell'header".to_string())
-    })?;
+    let kid = header
+        .kid
+        .ok_or_else(|| GoogleAuthError::InvalidToken("Token senza kid nell'header".to_string()))?;
 
     // Ottieni le chiavi pubbliche
     let keys = keys_cache.get_keys().await?;
 
     // Trova la chiave corrispondente
-    let jwk = keys.get(&kid).ok_or_else(|| {
-        GoogleAuthError::KeyNotFound(kid.clone())
-    })?;
+    let jwk = keys
+        .get(&kid)
+        .ok_or_else(|| GoogleAuthError::KeyNotFound(kid.clone()))?;
 
     // Costruisci la chiave di decodifica
     let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)
@@ -160,13 +160,14 @@ pub async fn verify_google_token(
     validation.set_issuer(&["https://accounts.google.com", "accounts.google.com"]);
 
     // Decodifica e valida il token
-    let token_data = decode::<GoogleClaims>(id_token, &decoding_key, &validation)
-        .map_err(|e| match e.kind() {
+    let token_data = decode::<GoogleClaims>(id_token, &decoding_key, &validation).map_err(|e| {
+        match e.kind() {
             jsonwebtoken::errors::ErrorKind::ExpiredSignature => GoogleAuthError::TokenExpired,
             jsonwebtoken::errors::ErrorKind::InvalidIssuer => GoogleAuthError::InvalidIssuer,
             jsonwebtoken::errors::ErrorKind::InvalidAudience => GoogleAuthError::InvalidAudience,
             _ => GoogleAuthError::InvalidToken(e.to_string()),
-        })?;
+        }
+    })?;
 
     Ok(token_data.claims)
 }

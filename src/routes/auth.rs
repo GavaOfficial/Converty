@@ -131,9 +131,10 @@ struct GoogleUserInfoResponse {
 pub async fn get_google_auth_url(
     State(state): State<AuthRouteState>,
 ) -> Result<Json<GoogleAuthUrlResponse>> {
-    let client_id = state.google_client_id.as_ref().ok_or_else(|| {
-        AppError::Internal("Google OAuth non configurato".to_string())
-    })?;
+    let client_id = state
+        .google_client_id
+        .as_ref()
+        .ok_or_else(|| AppError::Internal("Google OAuth non configurato".to_string()))?;
 
     // Genera state casuale per CSRF protection
     let oauth_state = generate_random_state();
@@ -189,7 +190,11 @@ pub async fn google_callback(
 
     // Funzione helper per redirect con errore
     let error_redirect = |msg: &str| {
-        Redirect::temporary(&format!("{}?auth_error={}", frontend_url, urlencoding::encode(msg)))
+        Redirect::temporary(&format!(
+            "{}?auth_error={}",
+            frontend_url,
+            urlencoding::encode(msg)
+        ))
     };
 
     // Controlla errori da Google
@@ -198,8 +203,12 @@ pub async fn google_callback(
     }
 
     // Verifica code e state
-    let code = query.code.ok_or_else(|| error_redirect("Missing authorization code"))?;
-    let oauth_state = query.state.ok_or_else(|| error_redirect("Missing state parameter"))?;
+    let code = query
+        .code
+        .ok_or_else(|| error_redirect("Missing authorization code"))?;
+    let oauth_state = query
+        .state
+        .ok_or_else(|| error_redirect("Missing state parameter"))?;
 
     // Verifica CSRF state
     {
@@ -210,9 +219,13 @@ pub async fn google_callback(
     }
 
     // Ottieni credentials
-    let client_id = state.google_client_id.as_ref()
+    let client_id = state
+        .google_client_id
+        .as_ref()
         .ok_or_else(|| error_redirect("Google OAuth not configured"))?;
-    let client_secret = state.google_client_secret.as_ref()
+    let client_secret = state
+        .google_client_secret
+        .as_ref()
         .ok_or_else(|| error_redirect("Google OAuth not configured"))?;
 
     // Scambia code per token
@@ -221,7 +234,9 @@ pub async fn google_callback(
         client_id,
         client_secret,
         "http://localhost:4000/api/v1/auth/google/callback",
-    ).await.map_err(|e| error_redirect(&format!("Token exchange failed: {}", e)))?;
+    )
+    .await
+    .map_err(|e| error_redirect(&format!("Token exchange failed: {}", e)))?;
 
     // Ottieni info utente da Google
     let user_info = get_google_user_info(&token_response.access_token)
@@ -312,7 +327,9 @@ async fn exchange_code_for_token(
 }
 
 /// Ottieni info utente da Google
-async fn get_google_user_info(access_token: &str) -> std::result::Result<GoogleUserInfoResponse, String> {
+async fn get_google_user_info(
+    access_token: &str,
+) -> std::result::Result<GoogleUserInfoResponse, String> {
     let client = reqwest::Client::new();
 
     let response = client
@@ -360,20 +377,21 @@ pub async fn get_current_user(
 ) -> Result<Json<CurrentUserResponse>> {
     // Richiede autenticazione
     if auth.is_guest {
-        return Err(AppError::Unauthorized("Autenticazione richiesta".to_string()));
+        return Err(AppError::Unauthorized(
+            "Autenticazione richiesta".to_string(),
+        ));
     }
 
-    let api_key_id = auth.api_key_id.as_ref().ok_or_else(|| {
-        AppError::Unauthorized("API Key non trovata".to_string())
-    })?;
+    let api_key_id = auth
+        .api_key_id
+        .as_ref()
+        .ok_or_else(|| AppError::Unauthorized("API Key non trovata".to_string()))?;
 
     // Trova l'utente OAuth associato all'API key
     let oauth_user = oauth_users::find_by_api_key_id(&state.db, api_key_id)
         .await
         .map_err(|e| AppError::Internal(format!("Errore database: {}", e)))?
-        .ok_or_else(|| {
-            AppError::NotFound("Utente non trovato".to_string())
-        })?;
+        .ok_or_else(|| AppError::NotFound("Utente non trovato".to_string()))?;
 
     // Ottieni statistiche
     let api_key_stats = db_stats::get_api_key_stats(&state.db, api_key_id)

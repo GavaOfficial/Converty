@@ -5,8 +5,8 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock, Semaphore};
 use uuid::Uuid;
 
-use crate::db::{jobs as db_jobs, oauth_users, user_settings, DbPool};
 use crate::db::jobs::JobRecord;
+use crate::db::{jobs as db_jobs, oauth_users, user_settings, DbPool};
 use crate::error::{AppError, Result};
 use crate::models::{ConversionType, Job, JobStatus, ProgressUpdate};
 use crate::services::converter;
@@ -103,7 +103,8 @@ impl JobQueueInner {
 
             if user_active >= user_limit {
                 return Err(AppError::TooManyJobs(format!(
-                    "Limite job raggiunto: {}/{}", user_active, user_limit
+                    "Limite job raggiunto: {}/{}",
+                    user_active, user_limit
                 )));
             }
         }
@@ -124,9 +125,8 @@ impl JobQueueInner {
         let now_str = now.to_rfc3339();
 
         // Calcola data di scadenza
-        let expires_at = expires_in_hours.map(|hours| {
-            (now + chrono::Duration::hours(hours)).to_rfc3339()
-        });
+        let expires_at =
+            expires_in_hours.map(|hours| (now + chrono::Duration::hours(hours)).to_rfc3339());
 
         // Crea record nel database
         let job_record = JobRecord {
@@ -353,7 +353,10 @@ pub async fn process_job(queue: JobQueue, job_id: Uuid) {
         match q.get_job(&job_id).await {
             Ok(Some(job)) => {
                 // Get the full job record for api_key_id and original_filename
-                let record = db_jobs::get_job(q.db(), &job_id.to_string()).await.ok().flatten();
+                let record = db_jobs::get_job(q.db(), &job_id.to_string())
+                    .await
+                    .ok()
+                    .flatten();
                 let api_key_id = record.as_ref().and_then(|r| r.api_key_id.clone());
                 let original_filename = record.as_ref().and_then(|r| r.original_filename.clone());
                 (job, api_key_id, original_filename)
@@ -370,7 +373,8 @@ pub async fn process_job(queue: JobQueue, job_id: Uuid) {
     // Progress: caricamento file
     {
         let q = queue.read().await;
-        q.update_job_progress(&job_id, 10, Some("Caricamento file...".to_string())).await;
+        q.update_job_progress(&job_id, 10, Some("Caricamento file...".to_string()))
+            .await;
     }
 
     // Esegui conversione
@@ -384,12 +388,17 @@ pub async fn process_job(queue: JobQueue, job_id: Uuid) {
     // Progress: conversione in corso
     {
         let q = queue.read().await;
-        q.update_job_progress(&job_id, 30, Some("Conversione in corso...".to_string())).await;
+        q.update_job_progress(&job_id, 30, Some("Conversione in corso...".to_string()))
+            .await;
     }
 
     // Gestione speciale per PDF multi-pagina
-    let is_pdf = matches!(conversion_type, ConversionType::Pdf) ||
-        input_path.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()) == Some("pdf".to_string());
+    let is_pdf = matches!(conversion_type, ConversionType::Pdf)
+        || input_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_lowercase())
+            == Some("pdf".to_string());
 
     let (result, actual_output_path) = if is_pdf {
         match converter::convert_pdf_file_smart(&input_path, &temp_dir, &output_format) {
@@ -411,7 +420,8 @@ pub async fn process_job(queue: JobQueue, job_id: Uuid) {
     // Progress: salvataggio
     {
         let q = queue.read().await;
-        q.update_job_progress(&job_id, 80, Some("Salvataggio risultato...".to_string())).await;
+        q.update_job_progress(&job_id, 80, Some("Salvataggio risultato...".to_string()))
+            .await;
     }
 
     // Aggiorna stato job
@@ -419,7 +429,8 @@ pub async fn process_job(queue: JobQueue, job_id: Uuid) {
         let q = queue.read().await;
         match result {
             Ok(_) => {
-                q.mark_job_completed(&job_id, actual_output_path.clone()).await;
+                q.mark_job_completed(&job_id, actual_output_path.clone())
+                    .await;
                 ("completed", None, Some(actual_output_path))
             }
             Err(e) => {
@@ -458,7 +469,8 @@ pub async fn process_job(queue: JobQueue, job_id: Uuid) {
                         &conv_type_str,
                         &google_client_id,
                         &google_client_secret,
-                    ).await;
+                    )
+                    .await;
                 });
             }
         }
@@ -479,7 +491,9 @@ pub async fn process_job(queue: JobQueue, job_id: Uuid) {
 pub async fn get_job_result(queue: &JobQueue, job_id: &Uuid) -> Result<Vec<u8>> {
     let q = queue.read().await;
 
-    let job = q.get_job(job_id).await?
+    let job = q
+        .get_job(job_id)
+        .await?
         .ok_or_else(|| AppError::JobNotFound(job_id.to_string()))?;
 
     if job.status != JobStatus::Completed {
@@ -503,7 +517,8 @@ pub async fn download_from_url(url: &str) -> Result<(Vec<u8>, String)> {
         .build()
         .map_err(|e| AppError::Internal(format!("Errore client HTTP: {}", e)))?;
 
-    let response = client.get(url)
+    let response = client
+        .get(url)
         .send()
         .await
         .map_err(|e| AppError::Internal(format!("Errore download URL: {}", e)))?;
@@ -518,14 +533,16 @@ pub async fn download_from_url(url: &str) -> Result<(Vec<u8>, String)> {
     // Estrai estensione dall'URL o dal content-type
     let extension = extract_extension_from_url(url)
         .or_else(|| {
-            response.headers()
+            response
+                .headers()
                 .get("content-type")
                 .and_then(|v| v.to_str().ok())
                 .and_then(extension_from_mime)
         })
         .unwrap_or_else(|| "bin".to_string());
 
-    let bytes = response.bytes()
+    let bytes = response
+        .bytes()
         .await
         .map_err(|e| AppError::Internal(format!("Errore lettura response: {}", e)))?;
 
@@ -538,7 +555,8 @@ fn extract_extension_from_url(url: &str) -> Option<String> {
         .next()
         .and_then(|filename| filename.split('?').next())
         .and_then(|filename| {
-            filename.rsplit('.')
+            filename
+                .rsplit('.')
                 .next()
                 .filter(|ext| ext.len() <= 5 && ext.chars().all(|c| c.is_alphanumeric()))
                 .map(|s| s.to_lowercase())
@@ -565,15 +583,11 @@ fn extension_from_mime(mime: &str) -> Option<String> {
 }
 
 /// Invia notifica webhook
-pub async fn send_webhook(
-    webhook_url: &str,
-    job_id: &Uuid,
-    status: &str,
-    error: Option<&str>
-) {
+pub async fn send_webhook(webhook_url: &str, job_id: &Uuid, status: &str, error: Option<&str>) {
     let client = match reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
-        .build() {
+        .build()
+    {
         Ok(c) => c,
         Err(e) => {
             tracing::error!("Errore creazione client webhook: {}", e);
@@ -588,10 +602,7 @@ pub async fn send_webhook(
         "timestamp": chrono::Utc::now().to_rfc3339()
     });
 
-    match client.post(webhook_url)
-        .json(&payload)
-        .send()
-        .await {
+    match client.post(webhook_url).json(&payload).send().await {
         Ok(response) => {
             if response.status().is_success() {
                 tracing::info!("Webhook inviato con successo per job {}", job_id);
@@ -652,12 +663,10 @@ pub async fn upload_to_drive_if_enabled(
 
     // Create Drive service and get valid token
     let drive = GoogleDriveService::new();
-    let access_token = match drive.get_valid_token(
-        db,
-        &user_id,
-        google_client_id,
-        google_client_secret,
-    ).await {
+    let access_token = match drive
+        .get_valid_token(db, &user_id, google_client_id, google_client_secret)
+        .await
+    {
         Ok(token) => token,
         Err(e) => {
             tracing::error!("Failed to get Drive token for user {}: {}", user_id, e);
@@ -666,7 +675,10 @@ pub async fn upload_to_drive_if_enabled(
     };
 
     // Ensure folder exists
-    let folder_id = match drive.ensure_folder(&access_token, &settings.drive_folder_name).await {
+    let folder_id = match drive
+        .ensure_folder(&access_token, &settings.drive_folder_name)
+        .await
+    {
         Ok(id) => id,
         Err(e) => {
             tracing::error!("Failed to ensure Drive folder: {}", e);
@@ -684,17 +696,20 @@ pub async fn upload_to_drive_if_enabled(
             })
             .unwrap_or_else(|| format!("converted.{}", output_format))
     } else {
-        format!("converted_{}.{}", chrono::Utc::now().format("%Y%m%d_%H%M%S"), output_format)
+        format!(
+            "converted_{}.{}",
+            chrono::Utc::now().format("%Y%m%d_%H%M%S"),
+            output_format
+        )
     };
 
     // Upload file
-    match drive.upload_file_from_path(&access_token, &folder_id, result_path, Some(&filename)).await {
+    match drive
+        .upload_file_from_path(&access_token, &folder_id, result_path, Some(&filename))
+        .await
+    {
         Ok(file) => {
-            tracing::info!(
-                "File uploaded to Drive: {} (id: {})",
-                file.name,
-                file.id
-            );
+            tracing::info!("File uploaded to Drive: {} (id: {})", file.name, file.id);
             // Save drive_file_id to job record
             if let Err(e) = db_jobs::update_job_drive_file_id(db, job_id, &file.id).await {
                 tracing::error!("Failed to save drive_file_id for job {}: {}", job_id, e);

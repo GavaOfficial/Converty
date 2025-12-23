@@ -147,11 +147,7 @@ pub fn convert_video_file(
         ));
     }
 
-    let mut args = vec![
-        "-y",
-        "-i",
-        input_path.to_str().unwrap_or(""),
-    ];
+    let mut args = vec!["-y", "-i", input_path.to_str().unwrap_or("")];
 
     // Parametri specifici per formato
     let format_args: Vec<String>;

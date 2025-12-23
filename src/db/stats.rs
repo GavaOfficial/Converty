@@ -27,7 +27,10 @@ pub struct ConversionRecordDb {
 }
 
 /// Inserisce un record di conversione
-pub async fn insert_conversion(pool: &DbPool, record: &ConversionRecordDb) -> Result<(), sqlx::Error> {
+pub async fn insert_conversion(
+    pool: &DbPool,
+    record: &ConversionRecordDb,
+) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         INSERT INTO conversion_records
@@ -73,7 +76,7 @@ pub async fn get_global_stats(pool: &DbPool) -> Result<GlobalStats, sqlx::Error>
 
     // Tempo medio elaborazione
     let avg_time: (f64,) = sqlx::query_as(
-        "SELECT COALESCE(AVG(CAST(processing_time_ms AS REAL)), 0.0) FROM conversion_records"
+        "SELECT COALESCE(AVG(CAST(processing_time_ms AS REAL)), 0.0) FROM conversion_records",
     )
     .fetch_one(pool)
     .await?;
@@ -171,7 +174,10 @@ async fn get_format_stats(pool: &DbPool) -> Result<FormatStats, sqlx::Error> {
     })
 }
 
-async fn get_time_window_stats(pool: &DbPool, duration: Duration) -> Result<TimeWindowStats, sqlx::Error> {
+async fn get_time_window_stats(
+    pool: &DbPool,
+    duration: Duration,
+) -> Result<TimeWindowStats, sqlx::Error> {
     let since = (Utc::now() - duration).to_rfc3339();
 
     let stats: (i64, i64, i64, i64) = sqlx::query_as(
@@ -198,14 +204,16 @@ async fn get_time_window_stats(pool: &DbPool, duration: Duration) -> Result<Time
 }
 
 /// Ottiene statistiche per una specifica API Key
-pub async fn get_api_key_stats(pool: &DbPool, api_key_id: &str) -> Result<Option<ApiKeyStats>, sqlx::Error> {
+pub async fn get_api_key_stats(
+    pool: &DbPool,
+    api_key_id: &str,
+) -> Result<Option<ApiKeyStats>, sqlx::Error> {
     // Verifica che l'API key esista
-    let key_info: Option<(String, String, String)> = sqlx::query_as(
-        "SELECT id, name, created_at FROM api_keys WHERE id = ?"
-    )
-    .bind(api_key_id)
-    .fetch_optional(pool)
-    .await?;
+    let key_info: Option<(String, String, String)> =
+        sqlx::query_as("SELECT id, name, created_at FROM api_keys WHERE id = ?")
+            .bind(api_key_id)
+            .fetch_optional(pool)
+            .await?;
 
     let (key_id, _name, created_at_str) = match key_info {
         Some(info) => info,
@@ -310,7 +318,7 @@ pub async fn get_recent_conversions(
                input_size_bytes, output_size_bytes, processing_time_ms, success
         FROM conversion_records
         WHERE 1=1
-        "#
+        "#,
     );
 
     if let Some(ref conv_type) = query.conversion_type {
@@ -338,7 +346,17 @@ pub async fn get_recent_conversions(
     Ok(rows
         .into_iter()
         .map(
-            |(id, timestamp, conversion_type, input_format, output_format, input_size, output_size, time_ms, success)| {
+            |(
+                id,
+                timestamp,
+                conversion_type,
+                input_format,
+                output_format,
+                input_size,
+                output_size,
+                time_ms,
+                success,
+            )| {
                 ConversionSummary {
                     id,
                     timestamp: DateTime::parse_from_rfc3339(&timestamp)
@@ -414,7 +432,7 @@ pub async fn get_guest_daily_usage(pool: &DbPool, ip: &str) -> Result<i64, sqlx:
     let today = Utc::now().format("%Y-%m-%d").to_string();
 
     let count: Option<(i64,)> = sqlx::query_as(
-        "SELECT conversions FROM guest_daily_usage WHERE ip_address = ? AND date = ?"
+        "SELECT conversions FROM guest_daily_usage WHERE ip_address = ? AND date = ?",
     )
     .bind(ip)
     .bind(&today)
@@ -452,7 +470,9 @@ pub async fn cleanup_old_records(pool: &DbPool, days: i64) -> Result<u64, sqlx::
         .await?;
 
     // Pulisci anche guest_daily_usage
-    let date_cutoff = (Utc::now() - Duration::days(days)).format("%Y-%m-%d").to_string();
+    let date_cutoff = (Utc::now() - Duration::days(days))
+        .format("%Y-%m-%d")
+        .to_string();
     sqlx::query("DELETE FROM guest_daily_usage WHERE date < ?")
         .bind(&date_cutoff)
         .execute(pool)
@@ -493,7 +513,11 @@ pub struct HistoryFilters {
 }
 
 /// Ottiene le conversioni di un utente (dalla tabella jobs)
-pub async fn get_user_conversions(pool: &DbPool, api_key_id: &str, limit: i64) -> Result<Vec<ConversionHistoryItem>, sqlx::Error> {
+pub async fn get_user_conversions(
+    pool: &DbPool,
+    api_key_id: &str,
+    limit: i64,
+) -> Result<Vec<ConversionHistoryItem>, sqlx::Error> {
     get_user_conversions_filtered(pool, api_key_id, limit, None).await
 }
 
@@ -509,7 +533,7 @@ pub async fn get_user_conversions_filtered(
         SELECT id, input_format, output_format, status, created_at, completed_at, file_size_bytes, original_filename, drive_file_id
         FROM jobs
         WHERE api_key_id = ?
-        "#
+        "#,
     );
 
     // Applica filtri
@@ -552,7 +576,17 @@ pub async fn get_user_conversions_filtered(
 
     sql.push_str(" ORDER BY created_at DESC LIMIT ?");
 
-    let rows: Vec<(String, String, String, String, String, Option<String>, Option<i64>, Option<String>, Option<String>)> = sqlx::query_as(&sql)
+    let rows: Vec<(
+        String,
+        String,
+        String,
+        String,
+        String,
+        Option<String>,
+        Option<i64>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(&sql)
         .bind(api_key_id)
         .bind(limit)
         .fetch_all(pool)
@@ -560,18 +594,30 @@ pub async fn get_user_conversions_filtered(
 
     Ok(rows
         .into_iter()
-        .map(|(id, input_format, output_format, status, created_at, completed_at, file_size, original_filename, drive_file_id)| {
-            ConversionHistoryItem {
+        .map(
+            |(
                 id,
                 input_format,
                 output_format,
                 status,
                 created_at,
                 completed_at,
-                file_size: file_size.unwrap_or(0),
+                file_size,
                 original_filename,
                 drive_file_id,
-            }
-        })
+            )| {
+                ConversionHistoryItem {
+                    id,
+                    input_format,
+                    output_format,
+                    status,
+                    created_at,
+                    completed_at,
+                    file_size: file_size.unwrap_or(0),
+                    original_filename,
+                    drive_file_id,
+                }
+            },
+        )
         .collect())
 }

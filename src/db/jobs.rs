@@ -265,11 +265,10 @@ pub async fn delete_job(pool: &DbPool, id: &str) -> Result<bool, sqlx::Error> {
 
 /// Conta i job attivi (pending o processing)
 pub async fn count_active_jobs(pool: &DbPool) -> Result<i64, sqlx::Error> {
-    let row: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM jobs WHERE status IN ('pending', 'processing')",
-    )
-    .fetch_one(pool)
-    .await?;
+    let row: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM jobs WHERE status IN ('pending', 'processing')")
+            .fetch_one(pool)
+            .await?;
     Ok(row.0)
 }
 
@@ -286,12 +285,11 @@ pub async fn count_user_active_jobs(pool: &DbPool, api_key_id: &str) -> Result<i
 
 /// Ottieni il limite di job concorrenti per un'API key
 pub async fn get_user_job_limit(pool: &DbPool, api_key_id: &str) -> Result<i64, sqlx::Error> {
-    let row: (Option<i64>,) = sqlx::query_as(
-        "SELECT max_concurrent_jobs FROM api_keys WHERE id = ?",
-    )
-    .bind(api_key_id)
-    .fetch_one(pool)
-    .await?;
+    let row: (Option<i64>,) =
+        sqlx::query_as("SELECT max_concurrent_jobs FROM api_keys WHERE id = ?")
+            .bind(api_key_id)
+            .fetch_one(pool)
+            .await?;
     Ok(row.0.unwrap_or(5))
 }
 
@@ -335,7 +333,10 @@ pub async fn cleanup_old_jobs(pool: &DbPool, days: i64) -> Result<(u64, Vec<Stri
 }
 
 /// Ottieni job in timeout (processing da troppo tempo)
-pub async fn get_timed_out_jobs(pool: &DbPool, timeout_seconds: i64) -> Result<Vec<String>, sqlx::Error> {
+pub async fn get_timed_out_jobs(
+    pool: &DbPool,
+    timeout_seconds: i64,
+) -> Result<Vec<String>, sqlx::Error> {
     let cutoff = (Utc::now() - Duration::seconds(timeout_seconds)).to_rfc3339();
 
     let rows: Vec<(String,)> = sqlx::query_as(
@@ -462,30 +463,31 @@ pub async fn get_expired_jobs(pool: &DbPool) -> Result<Vec<String>, sqlx::Error>
 
 /// Ottieni webhook URL per un job
 pub async fn get_job_webhook(pool: &DbPool, id: &str) -> Result<Option<String>, sqlx::Error> {
-    let row: Option<(Option<String>,)> = sqlx::query_as(
-        "SELECT webhook_url FROM jobs WHERE id = ?",
-    )
-    .bind(id)
-    .fetch_optional(pool)
-    .await?;
+    let row: Option<(Option<String>,)> =
+        sqlx::query_as("SELECT webhook_url FROM jobs WHERE id = ?")
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
 
     Ok(row.and_then(|r| r.0))
 }
 
 /// Conta i retry di un job
 pub async fn get_job_retry_count(pool: &DbPool, id: &str) -> Result<i64, sqlx::Error> {
-    let row: Option<(Option<i64>,)> = sqlx::query_as(
-        "SELECT retry_count FROM jobs WHERE id = ?",
-    )
-    .bind(id)
-    .fetch_optional(pool)
-    .await?;
+    let row: Option<(Option<i64>,)> = sqlx::query_as("SELECT retry_count FROM jobs WHERE id = ?")
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
 
     Ok(row.and_then(|r| r.0).unwrap_or(0))
 }
 
 /// Ottieni job per un utente (by api_key_id)
-pub async fn get_user_jobs(pool: &DbPool, api_key_id: &str, limit: i64) -> Result<Vec<JobRecord>, sqlx::Error> {
+pub async fn get_user_jobs(
+    pool: &DbPool,
+    api_key_id: &str,
+    limit: i64,
+) -> Result<Vec<JobRecord>, sqlx::Error> {
     sqlx::query_as::<_, JobRecord>(
         r#"
         SELECT id, api_key_id, conversion_type, input_format, output_format,
@@ -506,39 +508,38 @@ pub async fn get_user_jobs(pool: &DbPool, api_key_id: &str, limit: i64) -> Resul
 }
 
 /// Aggiorna drive_file_id per un job
-pub async fn update_job_drive_file_id(pool: &DbPool, id: &str, drive_file_id: &str) -> Result<bool, sqlx::Error> {
+pub async fn update_job_drive_file_id(
+    pool: &DbPool,
+    id: &str,
+    drive_file_id: &str,
+) -> Result<bool, sqlx::Error> {
     let now = Utc::now().to_rfc3339();
-    let result = sqlx::query(
-        "UPDATE jobs SET drive_file_id = ?, updated_at = ? WHERE id = ?",
-    )
-    .bind(drive_file_id)
-    .bind(&now)
-    .bind(id)
-    .execute(pool)
-    .await?;
+    let result = sqlx::query("UPDATE jobs SET drive_file_id = ?, updated_at = ? WHERE id = ?")
+        .bind(drive_file_id)
+        .bind(&now)
+        .bind(id)
+        .execute(pool)
+        .await?;
     Ok(result.rows_affected() > 0)
 }
 
 /// Rimuove drive_file_id da un job (quando il file viene eliminato da Drive)
 pub async fn clear_job_drive_file_id(pool: &DbPool, id: &str) -> Result<bool, sqlx::Error> {
     let now = Utc::now().to_rfc3339();
-    let result = sqlx::query(
-        "UPDATE jobs SET drive_file_id = NULL, updated_at = ? WHERE id = ?",
-    )
-    .bind(&now)
-    .bind(id)
-    .execute(pool)
-    .await?;
+    let result = sqlx::query("UPDATE jobs SET drive_file_id = NULL, updated_at = ? WHERE id = ?")
+        .bind(&now)
+        .bind(id)
+        .execute(pool)
+        .await?;
     Ok(result.rows_affected() > 0)
 }
 
 /// Ottiene il drive_file_id di un job
 pub async fn get_job_drive_file_id(pool: &DbPool, id: &str) -> Result<Option<String>, sqlx::Error> {
-    let row: Option<(Option<String>,)> = sqlx::query_as(
-        "SELECT drive_file_id FROM jobs WHERE id = ?",
-    )
-    .bind(id)
-    .fetch_optional(pool)
-    .await?;
+    let row: Option<(Option<String>,)> =
+        sqlx::query_as("SELECT drive_file_id FROM jobs WHERE id = ?")
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
     Ok(row.and_then(|(id,)| id))
 }

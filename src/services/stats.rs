@@ -86,24 +86,48 @@ impl StatsServiceInner {
         let total_output: u64 = self.records.iter().map(|r| r.output_size_bytes).sum();
 
         let avg_time = if total > 0 {
-            self.records.iter().map(|r| r.processing_time_ms).sum::<u64>() as f64 / total as f64
+            self.records
+                .iter()
+                .map(|r| r.processing_time_ms)
+                .sum::<u64>() as f64
+                / total as f64
         } else {
             0.0
         };
 
         // Stats per tipo
         let by_type = TypeStats {
-            image: self.records.iter().filter(|r| r.conversion_type == "image").count() as u64,
-            document: self.records.iter().filter(|r| r.conversion_type == "document").count() as u64,
-            audio: self.records.iter().filter(|r| r.conversion_type == "audio").count() as u64,
-            video: self.records.iter().filter(|r| r.conversion_type == "video").count() as u64,
+            image: self
+                .records
+                .iter()
+                .filter(|r| r.conversion_type == "image")
+                .count() as u64,
+            document: self
+                .records
+                .iter()
+                .filter(|r| r.conversion_type == "document")
+                .count() as u64,
+            audio: self
+                .records
+                .iter()
+                .filter(|r| r.conversion_type == "audio")
+                .count() as u64,
+            video: self
+                .records
+                .iter()
+                .filter(|r| r.conversion_type == "video")
+                .count() as u64,
         };
 
         // Stats per formato
         let by_format = self.get_format_stats();
 
         // Stats ultime 24h
-        let last_24h_records: Vec<_> = self.records.iter().filter(|r| r.timestamp > one_day_ago).collect();
+        let last_24h_records: Vec<_> = self
+            .records
+            .iter()
+            .filter(|r| r.timestamp > one_day_ago)
+            .collect();
         let last_24h = TimeWindowStats {
             conversions: last_24h_records.len() as u64,
             successful: last_24h_records.iter().filter(|r| r.success).count() as u64,
@@ -112,7 +136,11 @@ impl StatsServiceInner {
         };
 
         // Stats ultima ora
-        let last_hour_records: Vec<_> = self.records.iter().filter(|r| r.timestamp > one_hour_ago).collect();
+        let last_hour_records: Vec<_> = self
+            .records
+            .iter()
+            .filter(|r| r.timestamp > one_hour_ago)
+            .collect();
         let last_hour = TimeWindowStats {
             conversions: last_hour_records.len() as u64,
             successful: last_hour_records.iter().filter(|r| r.success).count() as u64,
@@ -164,8 +192,14 @@ impl StatsServiceInner {
             total_output_bytes: key_records.iter().map(|r| r.output_size_bytes).sum(),
             first_used,
             last_used,
-            conversions_today: key_records.iter().filter(|r| r.timestamp > today_start).count() as u64,
-            conversions_this_hour: key_records.iter().filter(|r| r.timestamp > one_hour_ago).count() as u64,
+            conversions_today: key_records
+                .iter()
+                .filter(|r| r.timestamp > today_start)
+                .count() as u64,
+            conversions_this_hour: key_records
+                .iter()
+                .filter(|r| r.timestamp > one_hour_ago)
+                .count() as u64,
         })
     }
 
@@ -217,7 +251,9 @@ impl StatsServiceInner {
 
         for record in &self.records {
             *input_counts.entry(record.input_format.clone()).or_insert(0) += 1;
-            *output_counts.entry(record.output_format.clone()).or_insert(0) += 1;
+            *output_counts
+                .entry(record.output_format.clone())
+                .or_insert(0) += 1;
         }
 
         let mut input_formats: Vec<_> = input_counts

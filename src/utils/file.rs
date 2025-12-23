@@ -40,10 +40,7 @@ pub fn run_ffmpeg(args: &[&str]) -> Result<()> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(AppError::FfmpegError(format!(
-            "FFmpeg fallito: {}",
-            stderr
-        )));
+        return Err(AppError::FfmpegError(format!("FFmpeg fallito: {}", stderr)));
     }
 
     Ok(())
