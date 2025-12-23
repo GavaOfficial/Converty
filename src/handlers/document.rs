@@ -206,7 +206,10 @@ fn markdown_to_html(content: &str) -> String {
             html.push_str(&format!("<h2>{}</h2>\n", h2));
         } else if let Some(h1) = trimmed.strip_prefix("# ") {
             html.push_str(&format!("<h1>{}</h1>\n", h1));
-        } else if let Some(li) = trimmed.strip_prefix("- ").or_else(|| trimmed.strip_prefix("* ")) {
+        } else if let Some(li) = trimmed
+            .strip_prefix("- ")
+            .or_else(|| trimmed.strip_prefix("* "))
+        {
             html.push_str(&format!("<li>{}</li>\n", li));
         } else if trimmed.is_empty() {
             html.push_str("<br>\n");
