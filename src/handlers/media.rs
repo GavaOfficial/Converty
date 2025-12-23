@@ -66,23 +66,22 @@ pub fn convert_audio_file(
     ];
 
     // Aggiungi parametri qualita' per formato
-    let quality_args: Vec<String>;
-    match output_format.to_lowercase().as_str() {
+    let quality_args: Vec<String> = match output_format.to_lowercase().as_str() {
         "mp3" => {
             let q = quality.unwrap_or(2); // 0-9, 0 = migliore
-            quality_args = vec!["-q:a".to_string(), q.to_string()];
+            vec!["-q:a".to_string(), q.to_string()]
         }
         "ogg" => {
             let q = quality.unwrap_or(5); // 0-10
-            quality_args = vec!["-q:a".to_string(), q.to_string()];
+            vec!["-q:a".to_string(), q.to_string()]
         }
         "flac" => {
-            quality_args = vec!["-compression_level".to_string(), "8".to_string()];
+            vec!["-compression_level".to_string(), "8".to_string()]
         }
         _ => {
-            quality_args = vec![];
+            vec![]
         }
-    }
+    };
 
     for arg in &quality_args {
         args.push(arg);
@@ -150,22 +149,21 @@ pub fn convert_video_file(
     let mut args = vec!["-y", "-i", input_path.to_str().unwrap_or("")];
 
     // Parametri specifici per formato
-    let format_args: Vec<String>;
-    match output_format.to_lowercase().as_str() {
+    let format_args: Vec<String> = match output_format.to_lowercase().as_str() {
         "mp4" => {
             let crf = quality.map(|q| 51 - (q as i32 * 51 / 100)).unwrap_or(23);
-            format_args = vec![
+            vec![
                 "-c:v".to_string(),
                 "libx264".to_string(),
                 "-crf".to_string(),
                 crf.to_string(),
                 "-c:a".to_string(),
                 "aac".to_string(),
-            ];
+            ]
         }
         "webm" => {
             let crf = quality.map(|q| 63 - (q as i32 * 63 / 100)).unwrap_or(30);
-            format_args = vec![
+            vec![
                 "-c:v".to_string(),
                 "libvpx-vp9".to_string(),
                 "-crf".to_string(),
@@ -174,29 +172,29 @@ pub fn convert_video_file(
                 "0".to_string(),
                 "-c:a".to_string(),
                 "libopus".to_string(),
-            ];
+            ]
         }
         "avi" => {
-            format_args = vec![
+            vec![
                 "-c:v".to_string(),
                 "mpeg4".to_string(),
                 "-c:a".to_string(),
                 "mp3".to_string(),
-            ];
+            ]
         }
         "gif" => {
             // Conversione speciale per GIF animata
-            format_args = vec![
+            vec![
                 "-vf".to_string(),
                 "fps=10,scale=320:-1:flags=lanczos".to_string(),
                 "-loop".to_string(),
                 "0".to_string(),
-            ];
+            ]
         }
         _ => {
-            format_args = vec![];
+            vec![]
         }
-    }
+    };
 
     for arg in &format_args {
         args.push(arg);

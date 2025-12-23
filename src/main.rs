@@ -21,12 +21,14 @@ use converty::middleware::rate_limit;
 use converty::models::{JobPriority, *};
 use converty::routes;
 use converty::routes::admin::{ApiKeyWithStats, CleanupRequest, CleanupResponse, MessageResponse};
+#[cfg(feature = "google-auth")]
 use converty::routes::auth::{
     CurrentUserResponse, GoogleAuthUrlResponse, UserInfo, UserStats as AuthUserStats,
 };
 use converty::services::queue;
 use converty::utils::check_ffmpeg_available;
 
+#[cfg(feature = "google-auth")]
 #[derive(OpenApi)]
 #[openapi(
     info(
@@ -111,6 +113,94 @@ use converty::utils::check_ffmpeg_available;
         (name = "Statistiche", description = "Statistiche conversioni"),
         (name = "Admin", description = "Gestione API Keys e configurazione"),
         (name = "Auth", description = "Autenticazione Google OAuth"),
+    ),
+    servers(
+        (url = "http://localhost:4000", description = "Server locale"),
+    ),
+    security(
+        ("api_key" = [])
+    ),
+    modifiers(&SecurityAddon)
+)]
+struct ApiDoc;
+
+#[cfg(not(feature = "google-auth"))]
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "Converty API",
+        version = "1.0.0",
+        description = "API per la conversione di file multimediali (immagini, documenti, audio, video)",
+        license(name = "MIT"),
+    ),
+    paths(
+        crate::routes::convert::convert_image,
+        crate::routes::convert::convert_document,
+        crate::routes::convert::convert_audio,
+        crate::routes::convert::convert_video,
+        crate::routes::convert::convert_batch,
+        crate::routes::health::health_check,
+        crate::routes::health::get_formats,
+        crate::routes::stats::get_stats,
+        crate::routes::stats::get_summary,
+        crate::routes::jobs::list_jobs,
+        crate::routes::jobs::create_job,
+        crate::routes::jobs::get_job_status,
+        crate::routes::jobs::delete_job,
+        crate::routes::jobs::download_job_result,
+        crate::routes::jobs::job_progress_stream,
+        crate::routes::jobs::retry_job,
+        crate::routes::jobs::cancel_job,
+        crate::routes::admin::list_api_keys,
+        crate::routes::admin::create_api_key,
+        crate::routes::admin::get_api_key,
+        crate::routes::admin::update_api_key,
+        crate::routes::admin::delete_api_key,
+        crate::routes::admin::get_guest_config,
+        crate::routes::admin::update_guest_config,
+        crate::routes::admin::cleanup_old_data,
+    ),
+    components(schemas(
+        HealthResponse,
+        FormatsResponse,
+        FormatSupport,
+        BatchConvertResponse,
+        ConvertedFile,
+        FailedFile,
+        JobResponse,
+        JobCreatedResponse,
+        JobStatus,
+        ConversionType,
+        ErrorResponse,
+        StatsResponse,
+        GlobalStats,
+        ApiKeyStats,
+        TypeStats,
+        FormatStats,
+        TimeWindowStats,
+        StatsSummary,
+        ProgressUpdate,
+        ApiKey,
+        ApiKeyCreated,
+        ApiKeyRole,
+        CreateApiKeyRequest,
+        UpdateApiKeyRequest,
+        ApiKeyWithStats,
+        GuestConfig,
+        CleanupRequest,
+        CleanupResponse,
+        MessageResponse,
+        JobRecord,
+        JobsListResponse,
+        JobsQuery,
+        JobPriority,
+    )),
+    tags(
+        (name = "Conversione", description = "Endpoints per convertire file"),
+        (name = "Sistema", description = "Health check e info"),
+        (name = "Jobs", description = "Gestione job asincroni"),
+        (name = "Statistiche", description = "Statistiche conversioni"),
+        (name = "Admin", description = "Gestione API Keys e configurazione"),
     ),
     servers(
         (url = "http://localhost:4000", description = "Server locale"),

@@ -35,6 +35,7 @@ pub struct JobsState {
     pub db: DbPool,
 }
 
+#[cfg(feature = "google-auth")]
 pub fn router(job_queue: JobQueue, progress_tx: ProgressSender, db: DbPool) -> Router {
     let state = JobsState {
         queue: job_queue,
@@ -54,6 +55,27 @@ pub fn router(job_queue: JobQueue, progress_tx: ProgressSender, db: DbPool) -> R
         .route("/api/v1/jobs/:id/cancel", post(cancel_job))
         .route("/api/v1/jobs/:id/drive", delete(delete_drive_file))
         .route("/api/v1/jobs/:id/thumbnail", get(get_drive_thumbnail))
+        .with_state(state)
+}
+
+#[cfg(not(feature = "google-auth"))]
+pub fn router(job_queue: JobQueue, progress_tx: ProgressSender, db: DbPool) -> Router {
+    let state = JobsState {
+        queue: job_queue,
+        progress_tx,
+        db,
+    };
+
+    Router::new()
+        .route("/api/v1/jobs", get(list_jobs))
+        .route("/api/v1/jobs", post(create_job))
+        .route("/api/v1/jobs/history", get(get_history))
+        .route("/api/v1/jobs/:id", get(get_job_status))
+        .route("/api/v1/jobs/:id", delete(delete_job))
+        .route("/api/v1/jobs/:id/download", get(download_job_result))
+        .route("/api/v1/jobs/:id/progress", get(job_progress_stream))
+        .route("/api/v1/jobs/:id/retry", post(retry_job))
+        .route("/api/v1/jobs/:id/cancel", post(cancel_job))
         .with_state(state)
 }
 
@@ -622,6 +644,7 @@ pub async fn cancel_job(
 }
 
 /// Elimina un file da Google Drive
+#[cfg(feature = "google-auth")]
 #[utoipa::path(
     delete,
     path = "/api/v1/jobs/{id}/drive",
@@ -706,6 +729,7 @@ pub async fn delete_drive_file(
 }
 
 /// Parametri query per thumbnail
+#[cfg(feature = "google-auth")]
 #[derive(Debug, serde::Deserialize)]
 pub struct ThumbnailQuery {
     /// Dimensione della thumbnail (default 80)
@@ -713,11 +737,13 @@ pub struct ThumbnailQuery {
     pub size: u32,
 }
 
+#[cfg(feature = "google-auth")]
 fn default_thumbnail_size() -> u32 {
     80
 }
 
 /// Ottieni la thumbnail di un file su Google Drive
+#[cfg(feature = "google-auth")]
 #[utoipa::path(
     get,
     path = "/api/v1/jobs/{id}/thumbnail",

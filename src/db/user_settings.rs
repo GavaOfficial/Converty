@@ -47,6 +47,7 @@ impl Default for UserSettings {
 }
 
 /// Ottiene le impostazioni di un utente
+#[allow(clippy::type_complexity)]
 pub async fn get_settings(
     pool: &DbPool,
     user_id: &str,
@@ -242,6 +243,7 @@ pub struct DriveUploadSettings {
 }
 
 /// Ottiene le impostazioni Drive per upload (se abilitato)
+#[allow(clippy::type_complexity)]
 pub async fn get_drive_upload_settings(
     pool: &DbPool,
     user_id: &str,

@@ -177,6 +177,7 @@ pub async fn create_api_key(
 }
 
 /// Trova API Key per hash
+#[allow(clippy::type_complexity)]
 pub async fn find_by_key(pool: &DbPool, api_key: &str) -> Result<Option<ApiKey>, sqlx::Error> {
     let hash = hash_api_key(api_key);
 
@@ -249,6 +250,7 @@ pub async fn find_by_key(pool: &DbPool, api_key: &str) -> Result<Option<ApiKey>,
 }
 
 /// Lista tutte le API Keys
+#[allow(clippy::type_complexity)]
 pub async fn list_all(pool: &DbPool) -> Result<Vec<ApiKey>, sqlx::Error> {
     let rows: Vec<(
         String,

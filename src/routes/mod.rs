@@ -4,6 +4,7 @@ pub mod auth;
 pub mod convert;
 pub mod health;
 pub mod jobs;
+#[cfg(feature = "google-auth")]
 pub mod settings;
 pub mod stats;
 
@@ -54,5 +55,4 @@ pub fn create_router(
         .merge(jobs::router(job_queue, progress_tx, db.clone()))
         .merge(stats::router(db.clone()))
         .merge(admin::router(db.clone()))
-        .merge(settings::router(db.clone()))
 }

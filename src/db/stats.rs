@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 use super::DbPool;
 use crate::models::{
     ApiKeyStats, ConversionSummary, FormatCount, FormatStats, GlobalStats, StatsQuery,
-    StatsResponse, TimeWindowStats, TypeStats,
+    TimeWindowStats, TypeStats,
 };
 
 /// Record conversione per database
@@ -307,6 +307,7 @@ pub async fn get_api_key_stats(
 }
 
 /// Ottiene conversioni recenti con filtri
+#[allow(clippy::type_complexity)]
 pub async fn get_recent_conversions(
     pool: &DbPool,
     query: &StatsQuery,
@@ -522,6 +523,7 @@ pub async fn get_user_conversions(
 }
 
 /// Ottiene le conversioni di un utente con filtri
+#[allow(clippy::type_complexity)]
 pub async fn get_user_conversions_filtered(
     pool: &DbPool,
     api_key_id: &str,

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-use crate::db::oauth_users::{self, OAuthTokens};
+use crate::db::oauth_users;
 use crate::db::DbPool;
 
 const DRIVE_API_BASE: &str = "https://www.googleapis.com/drive/v3";
@@ -198,7 +198,7 @@ impl GoogleDriveService {
 
         let response = self
             .client
-            .post(&format!("{}/files", DRIVE_API_BASE))
+            .post(format!("{}/files", DRIVE_API_BASE))
             .bearer_auth(access_token)
             .json(&metadata)
             .send()

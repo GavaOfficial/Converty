@@ -22,6 +22,12 @@ pub struct StatsServiceInner {
     max_records: usize,
 }
 
+impl Default for StatsServiceInner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StatsServiceInner {
     pub fn new() -> Self {
         Self {
@@ -32,6 +38,7 @@ impl StatsServiceInner {
     }
 
     /// Registra una nuova conversione
+    #[allow(clippy::too_many_arguments)]
     pub fn record_conversion(
         &mut self,
         api_key: Option<String>,

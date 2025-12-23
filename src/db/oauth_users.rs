@@ -42,6 +42,7 @@ pub struct OAuthLoginResult {
 }
 
 /// Trova utente OAuth per Google ID
+#[allow(clippy::type_complexity)]
 pub async fn find_by_google_id(
     pool: &DbPool,
     google_id: &str,
@@ -92,6 +93,7 @@ pub async fn find_by_google_id(
 }
 
 /// Trova utente OAuth per API Key ID
+#[allow(clippy::type_complexity)]
 pub async fn find_by_api_key_id(
     pool: &DbPool,
     api_key_id: &str,

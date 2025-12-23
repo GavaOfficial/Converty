@@ -1,15 +1,14 @@
 use axum::{
-    extract::{ConnectInfo, Multipart, Query, State},
-    http::{header, HeaderMap},
+    extract::{Multipart, Query, State},
+    http::header,
     response::IntoResponse,
     routing::post,
     Extension, Json, Router,
 };
-use std::net::SocketAddr;
 use std::time::Instant;
 
 use crate::db::api_keys::ApiKeyRole;
-use crate::db::stats::{self, ConversionRecordDb, GuestConfig};
+use crate::db::stats::{self, ConversionRecordDb};
 use crate::db::DbPool;
 use crate::error::{AppError, Result};
 use crate::handlers::image as image_handler;
@@ -639,6 +638,7 @@ pub async fn convert_batch(
     }))
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn record_conversion(
     db: &DbPool,
     auth: &AuthInfo,

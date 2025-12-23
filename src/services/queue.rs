@@ -6,10 +6,13 @@ use tokio::sync::{broadcast, RwLock, Semaphore};
 use uuid::Uuid;
 
 use crate::db::jobs::JobRecord;
-use crate::db::{jobs as db_jobs, oauth_users, user_settings, DbPool};
+use crate::db::{jobs as db_jobs, DbPool};
+#[cfg(feature = "google-auth")]
+use crate::db::{oauth_users, user_settings};
 use crate::error::{AppError, Result};
 use crate::models::{ConversionType, Job, JobStatus, ProgressUpdate};
 use crate::services::converter;
+#[cfg(feature = "google-auth")]
 use crate::services::google_drive::GoogleDriveService;
 
 /// Capacità del broadcast channel per progress updates
@@ -78,6 +81,7 @@ impl JobQueueInner {
         self.concurrency_semaphore.clone()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_job(
         &self,
         conversion_type: ConversionType,
@@ -348,6 +352,7 @@ pub async fn process_job(queue: JobQueue, job_id: Uuid) {
     }
 
     // Leggi dati job dal database (incluso api_key_id e original_filename per Drive)
+    #[allow(unused_variables)]
     let (job, api_key_id, original_filename) = {
         let q = queue.read().await;
         match q.get_job(&job_id).await {
@@ -425,6 +430,7 @@ pub async fn process_job(queue: JobQueue, job_id: Uuid) {
     }
 
     // Aggiorna stato job
+    #[allow(unused_variables)]
     let (final_status, error_msg, completed_output_path) = {
         let q = queue.read().await;
         match result {
@@ -442,6 +448,7 @@ pub async fn process_job(queue: JobQueue, job_id: Uuid) {
     };
 
     // Upload to Google Drive if enabled (only for completed jobs)
+    #[cfg(feature = "google-auth")]
     if final_status == "completed" {
         if let (Some(key_id), Some(result_path)) = (&api_key_id, &completed_output_path) {
             let q = queue.read().await;
@@ -621,11 +628,13 @@ pub async fn send_webhook(webhook_url: &str, job_id: &Uuid, status: &str, error:
 }
 
 /// Upload file to Google Drive if enabled for user
+#[cfg(feature = "google-auth")]
+#[allow(clippy::too_many_arguments)]
 pub async fn upload_to_drive_if_enabled(
     db: &DbPool,
     job_id: &str,
     api_key_id: &str,
-    result_path: &PathBuf,
+    result_path: &std::path::Path,
     original_filename: Option<&str>,
     output_format: &str,
     conversion_type: &str,

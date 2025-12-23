@@ -113,9 +113,9 @@ fn text_to_pdf(content: &str, input_format: &str) -> Result<Vec<u8>> {
     doc.save(&mut buffer)
         .map_err(|e| AppError::ConversionError(e.to_string()))?;
 
-    Ok(buffer
+    buffer
         .into_inner()
-        .map_err(|e| AppError::IoError(e.into_error()))?)
+        .map_err(|e| AppError::IoError(e.into_error()))
 }
 
 fn markdown_to_text(content: &str) -> String {
@@ -144,7 +144,7 @@ fn markdown_to_text(content: &str) -> String {
     // Rimuovi link syntax
     let re_link = regex_lite::Regex::new(r"\[([^\]]+)\]\([^)]+\)").unwrap_or_else(|_| {
         // Fallback se regex fallisce
-        return regex_lite::Regex::new(r"").unwrap();
+        regex_lite::Regex::new(r"").unwrap()
     });
     result = re_link.replace_all(&result, "$1").to_string();
 
@@ -200,14 +200,14 @@ fn markdown_to_html(content: &str) -> String {
     for line in content.lines() {
         let trimmed = line.trim();
 
-        if trimmed.starts_with("### ") {
-            html.push_str(&format!("<h3>{}</h3>\n", &trimmed[4..]));
-        } else if trimmed.starts_with("## ") {
-            html.push_str(&format!("<h2>{}</h2>\n", &trimmed[3..]));
-        } else if trimmed.starts_with("# ") {
-            html.push_str(&format!("<h1>{}</h1>\n", &trimmed[2..]));
-        } else if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
-            html.push_str(&format!("<li>{}</li>\n", &trimmed[2..]));
+        if let Some(h3) = trimmed.strip_prefix("### ") {
+            html.push_str(&format!("<h3>{}</h3>\n", h3));
+        } else if let Some(h2) = trimmed.strip_prefix("## ") {
+            html.push_str(&format!("<h2>{}</h2>\n", h2));
+        } else if let Some(h1) = trimmed.strip_prefix("# ") {
+            html.push_str(&format!("<h1>{}</h1>\n", h1));
+        } else if let Some(li) = trimmed.strip_prefix("- ").or_else(|| trimmed.strip_prefix("* ")) {
+            html.push_str(&format!("<li>{}</li>\n", li));
         } else if trimmed.is_empty() {
             html.push_str("<br>\n");
         } else {
