@@ -1,9 +1,28 @@
-# Stage 1: Build
-FROM rust:slim AS builder
+# =============================================================================
+# Stage 1: Chef - Prepara cargo-chef per caching dipendenze
+# =============================================================================
+FROM rust:slim AS chef
 
+RUN cargo install cargo-chef --locked
 WORKDIR /app
 
-# Installa dipendenze di sistema per build (incluso SQLite e curl per swagger-ui)
+# =============================================================================
+# Stage 2: Planner - Genera il "recipe" delle dipendenze
+# =============================================================================
+FROM chef AS planner
+
+COPY Cargo.toml Cargo.lock* ./
+COPY src ./src
+
+# Genera recipe.json (cattura tutte le dipendenze)
+RUN cargo chef prepare --recipe-path recipe.json
+
+# =============================================================================
+# Stage 3: Builder - Compila dipendenze (CACHED) e poi il progetto
+# =============================================================================
+FROM chef AS builder
+
+# Installa dipendenze di sistema per build
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
@@ -11,19 +30,25 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copia i file del progetto
+# Copia recipe e compila SOLO le dipendenze (questo layer viene cachato!)
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --no-default-features --recipe-path recipe.json
+
+# Ora copia il codice sorgente e compila l'applicazione
 COPY Cargo.toml Cargo.lock* ./
 COPY src ./src
 
-# Compila in release senza Google Auth (per Docker deployment)
+# Build finale (le dipendenze sono già compilate e cachate)
 RUN cargo build --release --no-default-features
 
-# Stage 2: Runtime (usa stessa base di rust:slim per compatibilità GLIBC)
+# =============================================================================
+# Stage 4: Runtime - Immagine finale minimale
+# =============================================================================
 FROM debian:trixie-slim
 
 WORKDIR /app
 
-# Installa FFmpeg, Poppler (pdftoppm), SQLite e curl per runtime
+# Installa solo le dipendenze runtime necessarie
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     poppler-utils \
