@@ -1,10 +1,10 @@
 use image::{DynamicImage, ImageFormat};
-use std::io::Cursor;
 use std::path::Path;
 
 use crate::config::formats;
 use crate::error::{AppError, Result};
 use crate::models::ImageOptions;
+use crate::utils::encode_image;
 
 pub fn convert_image(
     input_data: &[u8],
@@ -126,53 +126,6 @@ fn apply_resize(img: DynamicImage, options: &ImageOptions) -> DynamicImage {
         }
         (None, None) => img, // Nessun resize
     }
-}
-
-fn encode_image(img: &DynamicImage, format: &str, quality: Option<u8>) -> Result<Vec<u8>> {
-    let mut buffer = Cursor::new(Vec::new());
-
-    match format.to_lowercase().as_str() {
-        "jpg" | "jpeg" => {
-            let q = quality.unwrap_or(85);
-            let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buffer, q);
-            img.write_with_encoder(encoder)?;
-        }
-        "png" => {
-            // PNG con compressione
-            let encoder = image::codecs::png::PngEncoder::new_with_quality(
-                &mut buffer,
-                image::codecs::png::CompressionType::Best,
-                image::codecs::png::FilterType::Adaptive,
-            );
-            img.write_with_encoder(encoder)?;
-        }
-        "webp" => {
-            img.write_to(&mut buffer, ImageFormat::WebP)?;
-        }
-        "gif" => {
-            img.write_to(&mut buffer, ImageFormat::Gif)?;
-        }
-        "bmp" => {
-            img.write_to(&mut buffer, ImageFormat::Bmp)?;
-        }
-        "avif" => {
-            img.write_to(&mut buffer, ImageFormat::Avif)?;
-        }
-        "qoi" => {
-            img.write_to(&mut buffer, ImageFormat::Qoi)?;
-        }
-        "tiff" => {
-            img.write_to(&mut buffer, ImageFormat::Tiff)?;
-        }
-        _ => {
-            return Err(AppError::UnsupportedFormat(format!(
-                "Formato output non supportato: {}",
-                format
-            )));
-        }
-    }
-
-    Ok(buffer.into_inner())
 }
 
 fn get_image_format(format: &str) -> Result<ImageFormat> {

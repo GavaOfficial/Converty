@@ -1,6 +1,7 @@
 //! Handler per conversione SVG
 
 use crate::error::{AppError, Result};
+use crate::utils::encode_image;
 use std::path::Path;
 
 /// Converte SVG in formato raster (PNG, JPG, WebP, etc.)
@@ -70,44 +71,4 @@ pub fn convert_svg_file(
     let output_data = convert_svg_to_raster(&svg_data, output_format, width, height, quality)?;
     std::fs::write(output_path, output_data)?;
     Ok(())
-}
-
-fn encode_image(img: &image::DynamicImage, format: &str, quality: Option<u8>) -> Result<Vec<u8>> {
-    use std::io::Cursor;
-
-    let mut buffer = Cursor::new(Vec::new());
-
-    match format.to_lowercase().as_str() {
-        "png" => {
-            img.write_to(&mut buffer, image::ImageFormat::Png)?;
-        }
-        "jpg" | "jpeg" => {
-            let q = quality.unwrap_or(85);
-            let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buffer, q);
-            img.write_with_encoder(encoder)?;
-        }
-        "webp" => {
-            img.write_to(&mut buffer, image::ImageFormat::WebP)?;
-        }
-        "gif" => {
-            img.write_to(&mut buffer, image::ImageFormat::Gif)?;
-        }
-        "bmp" => {
-            img.write_to(&mut buffer, image::ImageFormat::Bmp)?;
-        }
-        "avif" => {
-            img.write_to(&mut buffer, image::ImageFormat::Avif)?;
-        }
-        "qoi" => {
-            img.write_to(&mut buffer, image::ImageFormat::Qoi)?;
-        }
-        _ => {
-            return Err(AppError::UnsupportedFormat(format!(
-                "Formato output non supportato per SVG: {}",
-                format
-            )));
-        }
-    }
-
-    Ok(buffer.into_inner())
 }
