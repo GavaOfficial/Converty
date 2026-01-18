@@ -3,7 +3,7 @@ name = "converty"
 version = "0.1.0"
 edition = "2021"
 description = "API REST per la conversione di file multimediali"
-authors = ["Converty Team"]
+authors = ["GavaOfficial"]
 
 [features]
 default = ["google-auth"]
