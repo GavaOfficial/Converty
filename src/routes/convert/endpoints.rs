@@ -1,51 +1,24 @@
+//! Individual conversion endpoints
+
 use axum::{
     extract::{Multipart, Query, State},
     http::header,
     response::IntoResponse,
-    routing::post,
-    Extension, Json, Router,
+    Extension,
 };
 use std::time::Instant;
 
-use crate::db::api_keys::ApiKeyRole;
-use crate::db::stats::{self, ConversionRecordDb};
-use crate::db::DbPool;
+use crate::db::stats;
 use crate::error::{AppError, Result};
 use crate::handlers::image as image_handler;
 use crate::handlers::pdf as pdf_handler;
-use crate::models::{
-    BatchConvertResponse, ConversionType, ConvertQuery, ConvertedFile, FailedFile, ImageOptions,
-    PdfConvertQuery,
-};
-use crate::services::{converter, queue::JobQueue};
-use crate::utils::get_extension;
+use crate::models::{AuthInfo, ConversionType, ConvertQuery, ImageOptions, PdfConvertQuery};
+use crate::services::converter;
+use crate::utils::{get_content_type, get_extension};
 
-#[derive(Clone)]
-pub struct ConvertState {
-    pub job_queue: JobQueue,
-    pub db: DbPool,
-}
-
-pub fn router(job_queue: JobQueue, db: DbPool) -> Router {
-    let state = ConvertState { job_queue, db };
-    Router::new()
-        .route("/api/v1/convert/image", post(convert_image))
-        .route("/api/v1/convert/document", post(convert_document))
-        .route("/api/v1/convert/audio", post(convert_audio))
-        .route("/api/v1/convert/video", post(convert_video))
-        .route("/api/v1/convert/pdf", post(convert_pdf))
-        .route("/api/v1/convert/batch", post(convert_batch))
-        .with_state(state)
-}
-
-/// Info utente autenticato
-#[derive(Clone, Debug)]
-pub struct AuthInfo {
-    pub api_key_id: Option<String>,
-    pub is_guest: bool,
-    pub role: ApiKeyRole,
-    pub client_ip: Option<String>,
-}
+use super::guest::{check_guest_file_size, check_guest_limits};
+use super::helpers::record_conversion;
+use super::ConvertState;
 
 /// Converti un'immagine
 #[utoipa::path(
@@ -132,7 +105,7 @@ pub async fn convert_image(
                 }
             }
 
-            let content_type = get_content_type(&query.output_format);
+            let content_type = get_content_type(&query.output_format).to_string();
             let output_filename = format!(
                 "{}.{}",
                 filename
@@ -362,7 +335,7 @@ pub async fn convert_pdf(
                 )
             } else {
                 (
-                    get_content_type(&query.output_format),
+                    get_content_type(&query.output_format).to_string(),
                     format!("{}_page{}.{}", base_name, query.page, query.output_format),
                 )
             };
@@ -399,6 +372,7 @@ pub async fn convert_pdf(
     }
 }
 
+/// Helper function for tracking conversions
 async fn convert_single_tracked(
     state: &ConvertState,
     auth: &AuthInfo,
@@ -470,7 +444,7 @@ async fn convert_single_tracked(
                 }
             }
 
-            let content_type = get_content_type(&query.output_format);
+            let content_type = get_content_type(&query.output_format).to_string();
             let output_filename = format!(
                 "{}.{}",
                 filename
@@ -510,240 +484,4 @@ async fn convert_single_tracked(
             Err(e)
         }
     }
-}
-
-/// Converti multipli file in batch
-#[utoipa::path(
-    post,
-    path = "/api/v1/convert/batch",
-    params(
-        ("output_format" = String, Query, description = "Formato output"),
-        ("quality" = Option<u8>, Query, description = "Qualità (1-100)"),
-    ),
-    responses(
-        (status = 200, description = "Risultato batch", body = BatchConvertResponse),
-    ),
-    security(("api_key" = [])),
-    tag = "Conversione"
-)]
-pub async fn convert_batch(
-    State(state): State<ConvertState>,
-    Extension(auth): Extension<AuthInfo>,
-    Query(query): Query<ConvertQuery>,
-    mut multipart: Multipart,
-) -> Result<Json<BatchConvertResponse>> {
-    // Guest non può usare batch
-    if auth.is_guest {
-        return Err(AppError::Forbidden(
-            "Batch conversion non disponibile per utenti guest".to_string(),
-        ));
-    }
-
-    let mut converted = Vec::new();
-    let mut failed = Vec::new();
-
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?
-    {
-        let start = Instant::now();
-        let filename = field.file_name().unwrap_or("file").to_string();
-        let input_format = get_extension(&filename).unwrap_or_default();
-
-        let data = match field.bytes().await {
-            Ok(d) => d,
-            Err(e) => {
-                failed.push(FailedFile {
-                    original_name: filename,
-                    error: e.to_string(),
-                });
-                continue;
-            }
-        };
-
-        let input_size = data.len() as i64;
-
-        // Determina tipo conversione automaticamente
-        let conversion_type = converter::detect_conversion_type(&input_format);
-
-        if let Some(conv_type) = conversion_type {
-            let type_str = conv_type.to_string();
-
-            match converter::convert(
-                &data,
-                &input_format,
-                &query.output_format,
-                &conv_type,
-                query.quality,
-            ) {
-                Ok(output) => {
-                    let output_size = output.len() as i64;
-
-                    // Registra successo
-                    record_conversion(
-                        &state.db,
-                        &auth,
-                        &type_str,
-                        &input_format,
-                        &query.output_format,
-                        input_size,
-                        output_size,
-                        start.elapsed().as_millis() as i64,
-                        true,
-                        None,
-                    )
-                    .await;
-
-                    converted.push(ConvertedFile {
-                        original_name: filename,
-                        output_format: query.output_format.clone(),
-                        size_bytes: output_size as u64,
-                    });
-                }
-                Err(e) => {
-                    // Registra errore
-                    record_conversion(
-                        &state.db,
-                        &auth,
-                        &type_str,
-                        &input_format,
-                        &query.output_format,
-                        input_size,
-                        0,
-                        start.elapsed().as_millis() as i64,
-                        false,
-                        Some(e.to_string()),
-                    )
-                    .await;
-
-                    failed.push(FailedFile {
-                        original_name: filename,
-                        error: e.to_string(),
-                    });
-                }
-            }
-        } else {
-            failed.push(FailedFile {
-                original_name: filename,
-                error: format!("Formato non supportato: {}", input_format),
-            });
-        }
-    }
-
-    Ok(Json(BatchConvertResponse {
-        success: failed.is_empty(),
-        converted,
-        failed,
-    }))
-}
-
-#[allow(clippy::too_many_arguments)]
-async fn record_conversion(
-    db: &DbPool,
-    auth: &AuthInfo,
-    conversion_type: &str,
-    input_format: &str,
-    output_format: &str,
-    input_size: i64,
-    output_size: i64,
-    processing_time_ms: i64,
-    success: bool,
-    error: Option<String>,
-) {
-    let record = ConversionRecordDb {
-        id: uuid::Uuid::new_v4().to_string(),
-        timestamp: chrono::Utc::now(),
-        api_key_id: auth.api_key_id.clone(),
-        is_guest: auth.is_guest,
-        conversion_type: conversion_type.to_string(),
-        input_format: input_format.to_string(),
-        output_format: output_format.to_string(),
-        input_size_bytes: input_size,
-        output_size_bytes: output_size,
-        processing_time_ms,
-        success,
-        error,
-        client_ip: auth.client_ip.clone(),
-    };
-
-    if let Err(e) = stats::insert_conversion(db, &record).await {
-        tracing::error!("Errore salvataggio statistiche: {}", e);
-    }
-}
-
-async fn check_guest_limits(db: &DbPool, auth: &AuthInfo, conversion_type: &str) -> Result<()> {
-    let config = stats::get_guest_config(db)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-
-    if !config.enabled {
-        return Err(AppError::Forbidden(
-            "Modalità guest disabilitata. Richiedi una API Key.".to_string(),
-        ));
-    }
-
-    // Verifica tipo conversione permesso
-    if !config.allowed_types.iter().any(|t| t == conversion_type) {
-        return Err(AppError::Forbidden(format!(
-            "Tipo conversione '{}' non permesso per guest. Tipi permessi: {}",
-            conversion_type,
-            config.allowed_types.join(", ")
-        )));
-    }
-
-    // Verifica limite giornaliero
-    if let Some(ip) = &auth.client_ip {
-        let daily_usage = stats::get_guest_daily_usage(db, ip)
-            .await
-            .map_err(|e| AppError::Internal(e.to_string()))?;
-
-        if daily_usage >= config.daily_limit {
-            return Err(AppError::DailyLimitExceeded(format!(
-                "Limite giornaliero di {} conversioni raggiunto per guest",
-                config.daily_limit
-            )));
-        }
-    }
-
-    Ok(())
-}
-
-async fn check_guest_file_size(db: &DbPool, size_bytes: i64) -> Result<()> {
-    let config = stats::get_guest_config(db)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-
-    let max_bytes = config.max_file_size_mb * 1024 * 1024;
-    if size_bytes > max_bytes {
-        return Err(AppError::FileTooLarge(config.max_file_size_mb as u64));
-    }
-
-    Ok(())
-}
-
-fn get_content_type(format: &str) -> String {
-    match format.to_lowercase().as_str() {
-        // Immagini
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "gif" => "image/gif",
-        "webp" => "image/webp",
-        "bmp" => "image/bmp",
-        // Documenti
-        "pdf" => "application/pdf",
-        "txt" => "text/plain",
-        "html" => "text/html",
-        // Audio
-        "mp3" => "audio/mpeg",
-        "wav" => "audio/wav",
-        "ogg" => "audio/ogg",
-        "flac" => "audio/flac",
-        // Video
-        "mp4" => "video/mp4",
-        "webm" => "video/webm",
-        "avi" => "video/x-msvideo",
-        _ => "application/octet-stream",
-    }
-    .to_string()
 }
