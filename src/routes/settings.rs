@@ -10,7 +10,7 @@ use crate::db::oauth_users;
 use crate::db::user_settings::{self, UpdateSettingsRequest, UserSettings};
 use crate::db::DbPool;
 use crate::error::{AppError, Result};
-use crate::routes::convert::AuthInfo;
+use crate::models::AuthInfo;
 
 /// Stato condiviso per le routes delle impostazioni
 #[derive(Clone)]

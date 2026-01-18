@@ -10,7 +10,7 @@ use std::net::SocketAddr;
 
 use crate::db::api_keys::{self, ApiKeyRole};
 use crate::db::DbPool;
-use crate::routes::convert::AuthInfo;
+use crate::models::AuthInfo;
 
 /// Stato per il middleware di autenticazione
 #[derive(Clone)]

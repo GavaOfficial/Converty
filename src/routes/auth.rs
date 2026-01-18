@@ -13,7 +13,7 @@ use crate::db::oauth_users::{self, GoogleUserInfo, OAuthUser};
 use crate::db::stats as db_stats;
 use crate::db::DbPool;
 use crate::error::{AppError, Result};
-use crate::routes::convert::AuthInfo;
+use crate::models::AuthInfo;
 
 /// State per le route di autenticazione
 #[derive(Clone)]

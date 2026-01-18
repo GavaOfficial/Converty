@@ -9,8 +9,7 @@ use crate::db::api_keys::ApiKeyRole;
 use crate::db::stats as db_stats;
 use crate::db::DbPool;
 use crate::error::{AppError, Result};
-use crate::models::{StatsQuery, StatsResponse, StatsSummary};
-use crate::routes::convert::AuthInfo;
+use crate::models::{AuthInfo, StatsQuery, StatsResponse, StatsSummary};
 
 #[derive(Clone)]
 pub struct StatsState {
