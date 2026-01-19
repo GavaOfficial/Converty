@@ -148,7 +148,8 @@ pub async fn get_google_auth_url(
         states.insert(oauth_state.clone(), now);
     }
 
-    let redirect_uri = "http://localhost:4000/api/v1/auth/google/callback";
+    let redirect_uri = std::env::var("GOOGLE_REDIRECT_URI")
+        .unwrap_or_else(|_| "http://localhost:4000/api/v1/auth/google/callback".to_string());
 
     // Include drive.file scope for saving converted files to Drive
     let url = format!(
@@ -229,11 +230,13 @@ pub async fn google_callback(
         .ok_or_else(|| error_redirect("Google OAuth not configured"))?;
 
     // Scambia code per token
+    let redirect_uri = std::env::var("GOOGLE_REDIRECT_URI")
+        .unwrap_or_else(|_| "http://localhost:4000/api/v1/auth/google/callback".to_string());
     let token_response = exchange_code_for_token(
         &code,
         client_id,
         client_secret,
-        "http://localhost:4000/api/v1/auth/google/callback",
+        &redirect_uri,
     )
     .await
     .map_err(|e| error_redirect(&format!("Token exchange failed: {}", e)))?;
