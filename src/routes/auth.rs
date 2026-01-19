@@ -232,14 +232,9 @@ pub async fn google_callback(
     // Scambia code per token
     let redirect_uri = std::env::var("GOOGLE_REDIRECT_URI")
         .unwrap_or_else(|_| "http://localhost:4000/api/v1/auth/google/callback".to_string());
-    let token_response = exchange_code_for_token(
-        &code,
-        client_id,
-        client_secret,
-        &redirect_uri,
-    )
-    .await
-    .map_err(|e| error_redirect(&format!("Token exchange failed: {}", e)))?;
+    let token_response = exchange_code_for_token(&code, client_id, client_secret, &redirect_uri)
+        .await
+        .map_err(|e| error_redirect(&format!("Token exchange failed: {}", e)))?;
 
     // Ottieni info utente da Google
     let user_info = get_google_user_info(&token_response.access_token)
