@@ -162,7 +162,7 @@ pub async fn get_google_auth_url(
         access_type=offline&\
         prompt=consent",
         urlencoding::encode(client_id),
-        urlencoding::encode(redirect_uri),
+        urlencoding::encode(&redirect_uri),
         urlencoding::encode(&oauth_state),
     );
 
