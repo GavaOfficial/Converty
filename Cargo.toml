@@ -50,9 +50,9 @@ tokio-stream = { version = "0.1", features = ["sync"] }
 # Rate limiting
 governor = "0.6"
 
-# Swagger/OpenAPI
+# OpenAPI Documentation
 utoipa = { version = "5", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "8", features = ["axum", "debug-embed"] }
+utoipa-scalar = { version = "0.2", features = ["axum"] }
 
 # Database SQLite
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono"] }

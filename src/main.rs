@@ -7,7 +7,7 @@ use tower_http::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_scalar::{Scalar, Servable};
 
 use converty::config::Config;
 use converty::db;
@@ -115,6 +115,7 @@ use converty::utils::check_ffmpeg_available;
         (name = "Auth", description = "Autenticazione Google OAuth"),
     ),
     servers(
+        (url = "https://convapi.gavatech.org", description = "Server produzione"),
         (url = "http://localhost:4000", description = "Server locale"),
     ),
     security(
@@ -203,6 +204,7 @@ struct ApiDoc;
         (name = "Admin", description = "Gestione API Keys e configurazione"),
     ),
     servers(
+        (url = "https://convapi.gavatech.org", description = "Server produzione"),
         (url = "http://localhost:4000", description = "Server locale"),
     ),
     security(
@@ -331,9 +333,9 @@ async fn main() {
         async move { rate_limit::rate_limit_middleware(limiter, req, next).await }
     }));
 
-    // Costruisci router completo con Swagger
+    // Costruisci router completo con Scalar API docs
     let app = Router::new()
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .merge(Scalar::with_url("/scalar", ApiDoc::openapi()))
         .merge(api_routes)
         .layer(TraceLayer::new_for_http())
         .layer(cors)
@@ -348,7 +350,7 @@ async fn main() {
     tracing::info!("  Converty API v{}", env!("CARGO_PKG_VERSION"));
     tracing::info!("========================================");
     tracing::info!("Server: http://{}", addr);
-    tracing::info!("Swagger UI: http://{}/swagger-ui/", addr);
+    tracing::info!("API Docs: http://{}/scalar", addr);
     tracing::info!("----------------------------------------");
     tracing::info!("Modalita':");
     tracing::info!("  - Guest: Limitato (config. da admin)");
