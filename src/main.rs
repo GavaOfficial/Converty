@@ -421,5 +421,46 @@ async fn main() {
     });
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+
+    // Canale per shutdown graceful
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    // Task per leggere comandi da stdin
+    tokio::spawn(async move {
+        let stdin = tokio::io::stdin();
+        let reader = tokio::io::BufReader::new(stdin);
+        let mut lines = tokio::io::AsyncBufReadExt::lines(reader);
+
+        while let Ok(Some(line)) = lines.next_line().await {
+            let cmd = line.trim().to_lowercase();
+            match cmd.as_str() {
+                "stop" | "quit" | "exit" => {
+                    tracing::info!("Comando '{}' ricevuto, arresto server...", cmd);
+                    let _ = shutdown_tx.send(());
+                    break;
+                }
+                "status" => {
+                    tracing::info!("Server attivo su http://{}", addr);
+                }
+                "help" => {
+                    tracing::info!("Comandi disponibili: stop, quit, exit, status, help");
+                }
+                "" => {}
+                _ => {
+                    tracing::warn!("Comando sconosciuto: '{}'. Usa 'help' per la lista.", cmd);
+                }
+            }
+        }
+    });
+
+    // Avvia server con shutdown graceful
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async {
+            let _ = shutdown_rx.await;
+            tracing::info!("Shutdown graceful in corso...");
+        })
+        .await
+        .unwrap();
+
+    tracing::info!("Server arrestato correttamente.");
 }
