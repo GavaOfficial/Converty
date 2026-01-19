@@ -169,7 +169,7 @@ jobs:
         run: cargo audit || echo "::warning::Security audit found issues"
 
   # ============================================
-  # JOB 6: Docker Build per piattaforma (parallel)
+  # JOB 6: Docker Build per piattaforma (parallel) - VERSIONE PUBBLICA
   # ============================================
   docker-build:
     name: 🐳 Build ${{ matrix.platform }}
@@ -221,6 +221,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.platform }}
@@ -242,7 +243,78 @@ jobs:
           retention-days: 1
 
   # ============================================
-  # JOB 7: Docker Push - Crea manifest multi-piattaforma
+  # JOB 6b: Docker Build per piattaforma - VERSIONE GOOGLE (privata)
+  # ============================================
+  docker-build-google:
+    name: 🐳 Build Google ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    needs: [test, security]
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set lowercase image name
+        run: echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}-google" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.google
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.platform }}-google
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}-google
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests-google
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests-google/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-google-${{ matrix.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
+          path: /tmp/digests-google/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ============================================
+  # JOB 7: Docker Push - Crea manifest multi-piattaforma (PUBBLICA)
   # ============================================
   docker-push:
     name: 🚀 Docker Push Manifest
@@ -301,12 +373,71 @@ jobs:
           docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
 
   # ============================================
+  # JOB 7b: Docker Push - Crea manifest multi-piattaforma (GOOGLE - privata)
+  # ============================================
+  docker-push-google:
+    name: 🚀 Docker Push Google Manifest
+    runs-on: ubuntu-latest
+    needs: docker-build-google
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Set lowercase image name
+        run: echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}-google" >> $GITHUB_ENV
+
+      - name: Download amd64 digest
+        uses: actions/download-artifact@v4
+        with:
+          name: digests-google-amd64
+          path: /tmp/digests
+
+      - name: Download arm64 digest
+        uses: actions/download-artifact@v4
+        with:
+          name: digests-google-arm64
+          path: /tmp/digests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+
+  # ============================================
   # JOB 8: Summary (depends on all jobs)
   # ============================================
   summary:
     name: 📊 Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [format, clippy, build, test, security, docker-build, docker-push]
+    needs: [format, clippy, build, test, security, docker-build, docker-push, docker-build-google, docker-push-google]
     if: always()
     steps:
       - name: Check job results
@@ -320,8 +451,10 @@ jobs:
           echo "| Build | ${{ needs.build.result == 'success' && '✅' || '❌' }} ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Test | ${{ needs.test.result == 'success' && '✅' || '❌' }} ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Security | ${{ needs.security.result == 'success' && '✅' || (needs.security.result == 'skipped' && '⏭️' || '⚠️') }} ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Build | ${{ needs.docker-build.result == 'success' && '✅' || (needs.docker-build.result == 'skipped' && '⏭️' || '❌') }} ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Push | ${{ needs.docker-push.result == 'success' && '✅' || (needs.docker-push.result == 'skipped' && '⏭️' || '❌') }} ${{ needs.docker-push.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build (Public) | ${{ needs.docker-build.result == 'success' && '✅' || (needs.docker-build.result == 'skipped' && '⏭️' || '❌') }} ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Push (Public) | ${{ needs.docker-push.result == 'success' && '✅' || (needs.docker-push.result == 'skipped' && '⏭️' || '❌') }} ${{ needs.docker-push.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build (Google) | ${{ needs.docker-build-google.result == 'success' && '✅' || (needs.docker-build-google.result == 'skipped' && '⏭️' || '❌') }} ${{ needs.docker-build-google.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Push (Google) | ${{ needs.docker-push-google.result == 'success' && '✅' || (needs.docker-push-google.result == 'skipped' && '⏭️' || '❌') }} ${{ needs.docker-push-google.result }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: Fail if critical jobs failed
         if: needs.format.result == 'failure' || needs.clippy.result == 'failure' || needs.build.result == 'failure' || needs.test.result == 'failure'
